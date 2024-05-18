@@ -1,0 +1,13 @@
+[dependencies]
+
+[package]
+  cjc-version = "0.50.3"
+  compile-option = ""
+  description = "nothing here"
+  link-option = ""
+  name = "shadowsocks_cj"
+  output-type = "executable"
+  src-dir = ""
+  target-dir = ""
+  version = "1.0.0"
+  package-configuration = {}
