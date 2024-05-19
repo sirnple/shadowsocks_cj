@@ -64,7 +64,7 @@ class TcpHandler {
                         log.debug("Status AddressNegotiationResponse")
                         match(dstAddr) {
                             case Some(addr) => 
-                                remoteSock = TcpSocket(SocketAddress(config.server, config.port))
+                                remoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
                                 let bindAddr = remoteSock.getOrThrow().localAddress.address
                                 let bindPort = remoteSock.getOrThrow().localAddress.port
                                 clientSock.write([SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, addr.atyp] + bindAddr + [UInt8(bindPort>>8), UInt8(bindPort&0xff)])
@@ -103,43 +103,28 @@ class TcpHandler {
         }
     }
 
-    private func encrypt(buf: Array<Byte>): Array<Byte> {
+    private func encrypt(iv: Array<Byte>, data: Array<Byte>): Array<Byte> {
         // 等长加密
-        return buf
+        return data
     }
 
     private func buildSsPacket(iv: Array<Byte>, rawData: Array<Byte>): Array<Byte> {
         return match (dstAddr) {
-            case Some(addr) => [UInt8(iv.size)] + iv + encrypt(addr.toBytes() + rawData)
+            case Some(addr) => [UInt8(iv.size)] + iv + encrypt(iv, addr.toBytes() + rawData)
             case None => throw Exception("Illegal status, addres has not been negotiation yet")
         }
     }
 
-    private func decrypt(buf: Array<Byte>): Array<Byte> {
+    private func unBuildSsPacket(ssPacket: Array<Byte>): Array<Byte> {
+        let ivLen = ssPacket[0]
+        let iv = ssPacket[1..Int64(ivLen)]
+        let decryptData = decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
+        // 因为远端回包没有带地址，地址是存在本地的，所以这里得到的就是传输的数据
+        return decryptData
+    }
+
+    private func decrypt(iv: Array<Byte>, data: Array<Byte>): Array<Byte> {
         // 等长解密
-        return buf
-    }
-}
-
-enum Status {
-    | Init
-    | AuthRequest
-    | AuthResponse
-    | AddressNegotiationRequest
-    | AddressNegotiationResponse
-    | Connected         // 上行和下行转发都通
-    | RelayUpwardFinished // 上行转发数据完成
-    | RelayDownwardFinished      // 下行转发数据完成
-    | Disconnected      // 本地应用和远端SS服务都关闭
-    | Destory           // 回收资源
-}
-
-struct DstAddr {
-    public DstAddr(public let atyp: Byte, public let addr: Array<Byte>, public let port: Array<Byte>) {
-
-    }
-
-    public func toBytes(): Array<Byte> {
-        return [atyp] + addr + port
+        return data
     }
 }

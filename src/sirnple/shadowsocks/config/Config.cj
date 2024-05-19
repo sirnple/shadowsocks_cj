@@ -7,7 +7,7 @@ from std import io.*
 public struct Config <: JsonDeserializable<Config> & ToString {
     public Config(
         public let server: String,
-        public let port: UInt16,
+        public let serverPort: UInt16,
         public let password: String,
         public let method: String,
         public let local: String,
@@ -50,7 +50,7 @@ public struct Config <: JsonDeserializable<Config> & ToString {
         return """
         {
             server: ${server}
-            server_port: ${port}
+            server_port: ${serverPort}
             password: ${password}
             method: ${method}
             local: ${local}
