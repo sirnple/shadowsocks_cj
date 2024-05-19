@@ -3,6 +3,7 @@ package sirnple.shadowsocks.local
 public class TcpServer {
     private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, ALL, Console.stdOut)
     private let config = Config.readConfig()
+    private let cryptor = PasswordCryptor(config.password, config.method)
     public TcpServer() {}
     public func start() {
         try(serverSocket = TcpServerSocket(bindAt: SocketAddress(config.local, config.localPort))) {
@@ -12,7 +13,7 @@ public class TcpServer {
             while(true) {
                 try(client = serverSocket.accept()) {
                     log.debug("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
-                    TcpHandler(config, client).handle()
+                    TcpHandler(config, client, cryptor).handle()
                 }
             }
 

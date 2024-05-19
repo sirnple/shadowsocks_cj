@@ -4,5 +4,5 @@
     "local": "127.0.0.1",
     "local_port": 1081,
     "password": "password",
-    "method": "aes-256-cfb"
+    "method": "aes-256-cbc"
 }

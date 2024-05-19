@@ -1,4 +1,4 @@
-package sirnple.shadowsocks.local
+package sirnple.shadowsocks.core
 
 extend Array<T> where T <: Byte {
     operator func +(arr: Array<Byte>): Array<Byte> {
