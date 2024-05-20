@@ -1,8 +1,34 @@
 package sirnple.shadowsocks.core
 
+from std import log.*
+from std import console.Console
+
 public let ATYP_IPv4 = 0x01u8
 public let ATYP_DOMAINNAME = 0x03u8
 public let ATYP_IPv6 = 0x04u8
+
+public func testMatch(atype: Byte) {
+    match (atype) {
+        case ATYP_IPv4 => 
+            print("ATYP_IPv4")
+        case ATYP_DOMAINNAME => 
+            print("ATYP_DOMAINNAME")
+        case ATYP_IPv6 => 
+            print("ATYP_IPv6")
+        case _ => 
+            print("Unknown ATYP")
+    }
+    match (atype) {
+        case 0x01u8 => 
+            print("0x01u8")
+        case 0x03u8 => 
+            print("0x03u8")
+        case 0x04u8 => 
+            print("0x04u8")
+        case _ => 
+            print("Unknown ATYP")
+    }
+}
 
 public let SOCKS_VERSION_5 = 0x05u8
 
@@ -45,48 +71,58 @@ public let CMD_BIND = 0x02u8
 public let CMD_UDP_ASSOCIATE = 0x03u8
 
 public let RESERVED = 0x00u8
-
+let log = SimpleLogger("sirnple.shadowsocks.core.protocol_const", DEBUG, Console.stdOut)
 public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, Byte, Array<Byte>, Array<Byte>) {
     if (frame.size < 4) {
+        log.debug("Size of frame must be at least 4, but is ${frame.size}")
         return None
     }
     let ver = frame[0]
     if (ver != SOCKS_VERSION_5) {
+        log.debug("Version must be ${SOCKS_VERSION_5}, but is ${ver}")
         return None
     }
     let cmd = frame[1]
-    if (cmd != CMD_CONNECT || cmd != CMD_BIND || cmd != CMD_UDP_ASSOCIATE) {
+    if (cmd != CMD_CONNECT && cmd != CMD_BIND && cmd != CMD_UDP_ASSOCIATE) {
+        log.debug("Command must be ${CMD_CONNECT}, ${CMD_BIND}, or ${CMD_UDP_ASSOCIATE}, but is ${cmd}")
         return None
     }
     let rsv = frame[2]
     if (rsv != RESERVED) {
+        log.debug("Reserved must be ${RESERVED}, but is ${rsv}")
         return None
     }
     let atyp = frame[3]
-    match (atyp) {
-        case ATYP_IPv4 =>
-            if (frame.size != 10) {
-                return None
-            }
-            return (ver, cmd, rsv, atyp, frame[4..8], frame[8..10])
-        case ATYP_DOMAINNAME =>
-            if (frame.size < 5) {
-                return None
-            }
-            let domainLen = frame[4]
-            if (frame.size < 5 + Int64(domainLen) + 2) {
-                return None
-            }
-            let domainName = frame[5..5 + Int64(domainLen)]
-            let port = frame[5 + Int64(domainLen)..5 + Int64(domainLen) + 2]
-            return (ver, cmd, rsv, atyp, [domainLen] + domainName, port)
-        case ATYP_IPv6 =>
-            if (frame.size != 22) {
-                return None
-            }
-            return (ver, cmd, rsv, atyp, frame[4..20], frame[20..22])
-        case _ => return None
+    if (atyp == ATYP_IPv4) {
+        if (frame.size != 10) {
+            log.debug("Size of frame must be 10 when ATYP_IPv4, but is ${frame.size}")
+            return None
+        }
+        return (ver, cmd, rsv, atyp, frame[4..8], frame[8..10])
     }
+    if (atyp == ATYP_IPv6) {
+        if (frame.size != 22) {
+            log.debug("Size of frame must be 22 when ATYP_IPv6, but is ${frame.size}")
+            return None
+        }
+        return (ver, cmd, rsv, atyp, frame[4..20], frame[20..22])
+    }
+    if (atyp == ATYP_DOMAINNAME) {
+        if (frame.size < 5) {
+            log.debug("Size of frame must be at least 5 when ATYP_DOMAINNAME, but is ${frame.size}")
+            return None
+        }
+        let domainLen = frame[4]
+        if (frame.size != 5 + Int64(domainLen) + 2) {
+            log.debug("Size of frame must be ${5 + domainLen + 2} when ATYP_DOMAINNAME, but is ${frame.size}")
+            return None
+        }
+        let domainName = frame[5..5 + Int64(domainLen)]
+        let port = frame[5 + Int64(domainLen)..5 + Int64(domainLen) + 2]
+        return (ver, cmd, rsv, atyp, [domainLen] + domainName, port)
+    }
+    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
+    return None
 }
 
 public let REP_SUCCEEDED = 0x00u8

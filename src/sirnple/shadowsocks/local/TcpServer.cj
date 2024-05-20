@@ -11,10 +11,9 @@ public class TcpServer {
             log.debug("TcpServer started: listening at ${serverSocket.localAddress.toString()}")
 
             while(true) {
-                try(client = serverSocket.accept()) {
-                    log.debug("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
-                    TcpHandler(config, client, cryptor).handle()
-                }
+                let client = serverSocket.accept()
+                log.debug("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
+                TcpHandler(config, client, cryptor).handle()
             }
 
         }

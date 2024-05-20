@@ -19,9 +19,9 @@ class TcpHandler {
     }
 
     public func handle() {
-        // spawn {
+        spawn {
             handle0()
-        // }
+        }
     }
 
     private func handle0() {
@@ -87,6 +87,7 @@ class TcpHandler {
                     if(readCount != 0) {
                         clientSock.write(unBuildSsPacket(buf[0..readCount]))
                     } else {
+                        remoteSock.getOrThrow().close()
                         status = Status.RelayDownwardFinished
                     }
                 case RelayDownwardFinished =>

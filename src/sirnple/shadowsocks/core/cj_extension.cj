@@ -6,8 +6,8 @@ extend Array<T> where T <: Byte {
         for(i in 0..this.size) {
             a[i] = this[i]
         }
-        for(i in this.size..a.size) {
-            a[i] = arr[i]
+        for(i in 0..arr.size) {
+            a[i+this.size] = arr[i]
         }
         return a
     }
