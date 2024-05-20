@@ -1,0 +1,61 @@
+package sirnple.shadowsocks.core
+
+from std import unittest.testmacro.{Test, Expect}
+from serialization import serialization.*
+
+/* ===== Emitted by MacroCall @Test in cj_extension_test.cj:6:1 ===== */
+/* 6.1 */@Attribute[TEST_GENERATED] class TestCase_testByteArrayPlus <: unittest.TestCases {
+/* 6.2 */    private var inited: Bool = false
+/* 6.3 */    protected override func initCases() {
+/* 6.4 */        
+/* 6.5 */        if(inited) { return }
+/* 6.6 */        inited = true
+/* 6.7 */        super.initCases()
+/* 6.8 */        super.getTestInfo().config = classConfiguration()
+/* 6.9 */        
+/* 6.10 */        { =>
+/* 6.11 */            let testByteArrayPlusTestFunc = { => testByteArrayPlus();() }
+/* 6.12 */            addCase(
+/* 6.13 */            SimpleTestCase(
+/* 6.14 */            false,
+/* 6.15 */            "testByteArrayPlus",
+/* 6.16 */            testByteArrayPlusTestFunc,
+/* 6.17 */            timeout: TimeoutInfo.NoTimeout.
+/* 6.18 */            applyDefault(TimeoutInfo.NoTimeout).
+/* 6.19 */            applyDefault(TimeoutInfo.fromDefaultConfiguration())
+/* 6.20 */            )
+/* 6.21 */            )
+/* 6.22 */        }()
+/* 6.23 */        return
+/* 6.24 */    }
+/* 6.25 */    private func classConfiguration(): unittest.Configuration {
+/* 6.26 */        let configuration =(unittest.defaultConfiguration()).clone()
+/* 6.27 */        
+/* 6.28 */        return configuration
+/* 6.29 */    }
+/* 6.30 */    init() {
+/* 6.31 */        name = "TestCase_testByteArrayPlus"
+/* 6.32 */        info.name = "TestCase_testByteArrayPlus"
+/* 6.33 */        isParallel_ = false
+/* 6.34 */    }
+/* 6.35 */}
+/* 6.36 */func testByteArrayPlus() {
+/* 6.37 */    expectEqual("Array < Byte > ( ) + Array < Byte > ( )", "Array < Byte > ( )", Array < Byte >() + Array < Byte >(), Array < Byte >())
+/* 6.38 */    expectEqual("Array < Byte > ( ) + [ 1u8 ]", "[ 1u8 ]", Array < Byte >() +[1u8],[1u8])
+/* 6.39 */    expectEqual("[ 1u8 ] + Array < Byte > ( )", "[ 1u8 ]",[1u8] + Array < Byte >(),[1u8])
+/* 6.40 */    expectEqual("[ 1u8 ] + [ 2u8 ]", "[ 1u8 , 2u8 ]",[1u8] +[2u8],[1u8, 2u8])
+/* 6.41 */    
+/* 6.42 */    expectEqual("[ 1u8 , 2u8 ] + [ 3u8 , 4u8 ]", "[ 1u8 , 2u8 , 3u8 , 4u8 ]",[1u8, 2u8] +[3u8, 4u8],[1u8, 2u8, 3u8, 4u8])
+/* 6.43 */    
+/* 6.44 */    expectEqual("[ 1u8 , 2u8 , 3u8 , 4u8 ] + [ 5u8 , 6u8 ]", "[ 1u8 , 2u8 , 3u8 , 4u8 , 5u8 , 6u8 ]",[1u8, 2u8, 3u8, 4u8] +[5u8, 6u8],[1u8, 2u8, 3u8, 4u8, 5u8, 6u8])
+/* 6.45 */}
+/* 6.46 */
+/* 6.47 */
+/* 6.48 */extend unittest.TestPackage {
+/* 6.49 */    @Attribute[TEST_REGISTER]
+/* 6.50 */    func registerTestCase_testByteArrayPlus() {
+/* 6.51 */        add(TestCase_testByteArrayPlus())
+/* 6.52 */    }
+/* 6.53 */}
+/* 6.54 */
+/* ===== End of the Emit ===== */

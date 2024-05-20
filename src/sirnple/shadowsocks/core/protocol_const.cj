@@ -71,7 +71,7 @@ public let CMD_BIND = 0x02u8
 public let CMD_UDP_ASSOCIATE = 0x03u8
 
 public let RESERVED = 0x00u8
-let log = SimpleLogger("sirnple.shadowsocks.core.protocol_const", DEBUG, Console.stdOut)
+let log = SimpleLogger(@sourcePackage(), DEBUG, Console.stdOut)
 public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, Byte, Array<Byte>, Array<Byte>) {
     if (frame.size < 4) {
         log.debug("Size of frame must be at least 4, but is ${frame.size}")
@@ -142,4 +142,48 @@ public func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte
 
 public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return buildNegotiationResponse(SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, atyp, addr, port)
+}
+
+public func buildUpwardSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
+    log.debug("Before encrypt: ${[dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData}")
+    let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
+    log.debug("After encrypt: ${encryptedData}")
+    [UInt8(iv.size)] + iv + encryptedData
+}
+
+public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
+    log.debug("Before encrypt: ${rawData}")
+    let (iv, encryptedData) = cryptor.encrypt(rawData)
+    log.debug("After encrypt: ${encryptedData}")
+    [UInt8(iv.size)] + iv + encryptedData
+}
+
+
+public func unBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): Array<Byte> {
+    log.debug("Before decrypt: ${ssPacket}")
+    let ivLen = ssPacket[0]
+    let iv = ssPacket[1..Int64(ivLen) + 1]
+    let decryptData = cryptor.decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
+    log.debug("After decrypt: ${decryptData}")
+    return decryptData
+}
+
+public func unBuildUpwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Byte, Array<Byte>, Array<Byte>, Array<Byte>) {
+    let data = unBuildSsPacket(cryptor, ssPacket)
+    let atyp = data[0]
+    if (atyp == ATYP_IPv4) {
+        return (atyp, data[1..5], data[5..7], data[7..data.size])
+    }
+    if (atyp == ATYP_IPv6) {
+        return (atyp, data[1..17], data[17..19], data[19..data.size])
+    }
+    if (atyp == ATYP_DOMAINNAME) {
+        return (atyp, data[1..2], data[2..4], data[4..data.size])
+    }
+    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
+    return None
+}
+
+public func unBuildDownwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): Array<Byte> {
+    unBuildSsPacket(cryptor, ssPacket)
 }

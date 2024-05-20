@@ -63,6 +63,7 @@ class TcpHandler {
                     match(dstAddr) {
                         case Some(addr) => 
                             remoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
+                            remoteSock.getOrThrow().connect()
                             let bindAddr = remoteSock.getOrThrow().localAddress.address
                             let bindPort = remoteSock.getOrThrow().localAddress.port
                             clientSock.write(buildSuccessNegotiationResponse(addr.atyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))
@@ -75,7 +76,9 @@ class TcpHandler {
                     let buf = Array<Byte>(4096, item: 0)
                     let readCount = clientSock.read(buf)
                     if (readCount != 0) {
-                        remoteSock.getOrThrow().write(buildSsPacket(buf[0..readCount]))
+                        let packet = buildSsPacket(buf[0..readCount])
+                        log.debug("Send ${packet}")
+                        remoteSock.getOrThrow().write(packet)
                     } else {
                         status = RelayUpwardFinished
                     }
@@ -104,18 +107,12 @@ class TcpHandler {
 
     private func buildSsPacket(rawData: Array<Byte>): Array<Byte> {
         return match (dstAddr) {
-            case Some(addr) => 
-                let (iv, encryptedData) = cryptor.encrypt(rawData)
-                [UInt8(iv.size)] + iv + encryptedData
+            case Some(addr) => buildUpwardSsPacket(addr, cryptor, rawData)
             case None => throw Exception("Illegal status, addres has not been negotiation yet")
         }
     }
 
     private func unBuildSsPacket(ssPacket: Array<Byte>): Array<Byte> {
-        let ivLen = ssPacket[0]
-        let iv = ssPacket[1..Int64(ivLen)]
-        let decryptData = cryptor.decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
-        // 因为远端回包没有带地址，地址是存在本地的，所以这里得到的就是传输的数据
-        return decryptData
+        return unBuildDownwardSsPacket(cryptor, ssPacket)
     }
 }

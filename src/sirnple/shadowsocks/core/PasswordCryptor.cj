@@ -6,6 +6,7 @@ from crypto4cj import aescj.*
 from crypto4cj import utils.*
 from std import collection.ArrayList
 from std import convert.Parsable
+from std import random.Random
 
 public class PasswordCryptor <: Cryptor {
     private let algorithm: String
@@ -43,10 +44,14 @@ public class PasswordCryptor <: Cryptor {
         return match (myKey) {
             case Some(key) => key
             case None =>
-                let key = pbkdf2HmacSha1(password.toArray(), b"salt", 1000, keyLen)
+                let key = pbkdf2HmacSha1(password.toArray(), randomSalt(), 1000, keyLen)
                 myKey = key
                 return key
         }
+    }
+
+    private func randomSalt(): Array<Byte> {
+        return Random().nextUInt8s(Array<Byte>(16, item: 0))
     }
 
     private func aesEncrypt(data: Array<UInt8>): (Array<Byte>, Array<UInt8>) {
@@ -64,6 +69,7 @@ public class PasswordCryptor <: Cryptor {
                 }   
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cbc")
         }
+        log.debug("aesEncrypt iv: ${iv}")
         return (iv, res.toArray())
     }
 
@@ -71,7 +77,8 @@ public class PasswordCryptor <: Cryptor {
         return arrayTo2Array(data, Int64(AES_BLOCK_SIZE))
     }
 
-    func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {
+    private func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {
+        log.debug("aesDecrypt iv: ${iv}")
         var key = AESKEY()
         var outside: Array<UInt8> = Array<UInt8>(Int64(AES_BLOCK_SIZE), item: 0)
         var keyRet = aesSetDecryptKey(generateKey(), keyLen, key)
