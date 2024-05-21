@@ -114,7 +114,6 @@ public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
 func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, Array<Byte>) {
-    log.debug("Try resolve domain name ${domainName} : ${port}")
     let host = SocketAddress.resolve(String.fromUtf8(domainName), UInt16(port[0])<<8 | UInt16(port[1]))
     match (host) {
         case Some(h) =>
@@ -127,7 +126,8 @@ func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, A
                     None
             }
         case None => 
-            log.debug("Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
+            println("=================== Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
+            log.debug("=================== Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
             None
     }
 }
