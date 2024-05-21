@@ -2,6 +2,7 @@ package sirnple.shadowsocks.core
 
 from std import log.*
 from std import console.Console
+from std import socket.*
 
 public let ATYP_IPv4 = 0x01u8
 public let ATYP_DOMAINNAME = 0x03u8
@@ -112,6 +113,24 @@ public let REP_TTL_EXPIRED = 0x06u8
 public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
+func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, Array<Byte>) {
+    log.debug("Try resolve domain name ${domainName} : ${port}")
+    let host = SocketAddress.resolve(String.fromUtf8(domainName), UInt16(port[0])<<8 | UInt16(port[1]))
+    match (host) {
+        case Some(h) =>
+            log.debug("Resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])} to ${h.hostAddress}")
+            match (h.kind) {
+                case SocketAddressKind.IPv4 => (ATYP_IPv4, h.address)
+                case SocketAddressKind.IPv6 => (ATYP_IPv6, h.address)
+                case _ => 
+                    log.debug("Address kind must be ${SocketAddressKind.IPv4} or ${SocketAddressKind.IPv6}, but is ${h.kind}")
+                    None
+            }
+        case None => 
+            log.debug("Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
+            None
+    }
+}
 
 public func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return [ver, rep, rsv, atyp] + addr + port
@@ -122,6 +141,16 @@ public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port:
 }
 
 public func buildUpwardSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
+    if (dstAddtr.atyp == ATYP_DOMAINNAME) {
+        return match (tryResolveDomainName(dstAddtr.addr, dstAddtr.port)) {
+            case Some((resolvedAtyp, resolvedAddr)) =>
+                let (iv, encryptedData) = cryptor.encrypt([resolvedAtyp] + resolvedAddr + dstAddtr.port + rawData)
+                [UInt8(iv.size)] + iv + encryptedData
+            case None => 
+                let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
+                [UInt8(iv.size)] + iv + encryptedData
+        }
+    }
     let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
     [UInt8(iv.size)] + iv + encryptedData
 }

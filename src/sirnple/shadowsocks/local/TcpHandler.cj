@@ -51,7 +51,7 @@ class TcpHandler {
                     let buf = Array<Byte>(100, item: 0)
                     let readCount = clientSock.read(buf)
                     match (checkIsNegotiationRequest(buf[0..readCount])) {
-                        case Some((ver, cmd, rsv, atyp, addr, port)) => 
+                        case Some((ver, cmd, rsv, atyp, addr, port)) =>
                             dstAddr = Some(DstAddr(atyp, addr, port))
                             status = Status.AddressNegotiationResponse
                         case None => 

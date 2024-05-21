@@ -6,6 +6,6 @@
 
 # Cangjie
 target/*
-
+*.macrocall
 
 .cache/*
