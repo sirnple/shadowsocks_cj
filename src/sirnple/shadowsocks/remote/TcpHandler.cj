@@ -38,15 +38,16 @@ class TcpHandler {
                                                 if (atyp == ATYP_IPv4) {
                                                     sock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, addr, UInt16(port[0])<<8 | UInt16(port[1])))
                                                     sock.getOrThrow().connect()
+                                                    sock.getOrThrow().write(data)
                                                 } else if (atyp == ATYP_IPv6) {
                                                     sock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, addr, UInt16(port[0])<<8 | UInt16(port[1])))
                                                     sock.getOrThrow().connect()
+                                                    sock.getOrThrow().write(data)
                                                 } else if (atyp == ATYP_DOMAINNAME) {
                                                     log.warn("Not support domain name yet")
                                                     status = Status.Disconnected
                                                 }
                                         }
-                                        sock.getOrThrow().write(data)
                                     case None =>
                                         log.warn("Read ${buf[0..readCount]} is not a valid upstream shadowsocks packet")
                                         status = Status.Disconnected
