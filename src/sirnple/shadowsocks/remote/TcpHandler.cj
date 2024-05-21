@@ -26,7 +26,6 @@ class TcpHandler {
                     log.debug("Status Connected")
                     let buf = Array<Byte>(4096, item: 0)
                     let readCount = clientSock.read(buf)
-                    log.debug("Read ${buf[0..readCount]}")
                     if (readCount != 0) {
                         let packet = unBuildUpwardSsPacket(cryptor, buf[0..readCount])
                         match (packet) {
@@ -42,19 +41,20 @@ class TcpHandler {
                                             sock.getOrThrow().connect()
                                         } else if (atyp == ATYP_DOMAINNAME) {
                                             log.warn("Not support domain name yet")
-                                            continue
+                                            status = Status.Disconnected
                                         }
                                 }
                                 sock.getOrThrow().write(data)
                             case None =>
                                 log.warn("Read ${buf[0..readCount]} is not a valid upstream shadowsocks packet")
-                                continue
+                                status = Status.Disconnected
                         }
                     } else {
                         status = Status.RelayUpwardFinished
                     }
                 case Status.RelayUpwardFinished =>
                     log.debug("Status RelayUpwardFinished")
+                    sock.getOrThrow().close()
                     let buf = Array<Byte>(4096, item: 0)
                     let readCount = sock.getOrThrow().read(buf)
                     if (readCount != 0) {
@@ -65,14 +65,24 @@ class TcpHandler {
                     }
                 case Status.RelayDownwardFinished => 
                     log.debug("Status RelayDownwardFinished")
+                    clientSock.close()
                     status = Status.Disconnected
                 case Status.Disconnected =>
                     log.debug("Status Disconnected")
-                    sock.getOrThrow().close()
-                    clientSock.close()
+                    match (sock) {
+                        case Some(s) =>
+                            if (!s.isClosed()) {
+                                s.close()
+                            }
+                        case None => ()
+                    }
+                    if (!clientSock.isClosed()) {
+                        clientSock.close()
+                    }
                     status = Status.Destory
                 case Destory => 
                     log.debug("Status Destory")
+                    break
             }
 
         }

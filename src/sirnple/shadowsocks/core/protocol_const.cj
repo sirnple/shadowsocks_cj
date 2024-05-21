@@ -7,29 +7,6 @@ public let ATYP_IPv4 = 0x01u8
 public let ATYP_DOMAINNAME = 0x03u8
 public let ATYP_IPv6 = 0x04u8
 
-public func testMatch(atype: Byte) {
-    match (atype) {
-        case ATYP_IPv4 => 
-            print("ATYP_IPv4")
-        case ATYP_DOMAINNAME => 
-            print("ATYP_DOMAINNAME")
-        case ATYP_IPv6 => 
-            print("ATYP_IPv6")
-        case _ => 
-            print("Unknown ATYP")
-    }
-    match (atype) {
-        case 0x01u8 => 
-            print("0x01u8")
-        case 0x03u8 => 
-            print("0x03u8")
-        case 0x04u8 => 
-            print("0x04u8")
-        case _ => 
-            print("Unknown ATYP")
-    }
-}
-
 public let SOCKS_VERSION_5 = 0x05u8
 
 public let METHOD_NOAUTH = 0x00u8
@@ -145,26 +122,20 @@ public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port:
 }
 
 public func buildUpwardSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
-    log.debug("Before encrypt: ${[dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData}")
     let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-    log.debug("After encrypt: ${encryptedData}")
     [UInt8(iv.size)] + iv + encryptedData
 }
 
 public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
-    log.debug("Before encrypt: ${rawData}")
     let (iv, encryptedData) = cryptor.encrypt(rawData)
-    log.debug("After encrypt: ${encryptedData}")
     [UInt8(iv.size)] + iv + encryptedData
 }
 
 
 public func unBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): Array<Byte> {
-    log.debug("Before decrypt: ${ssPacket}")
     let ivLen = ssPacket[0]
     let iv = ssPacket[1..Int64(ivLen) + 1]
     let decryptData = cryptor.decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
-    log.debug("After decrypt: ${decryptData}")
     return decryptData
 }
 

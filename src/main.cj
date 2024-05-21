@@ -1,5 +1,9 @@
 import sirnple.shadowsocks.local.TcpServer as Local
 import sirnple.shadowsocks.remote.TcpServer as Remote
+from crypto4cj import aescj.*
+from crypto4cj import utils.*
+from std import collection.*
+from encoding import hex.*
 
 main(): Int64 {
     let local = spawn {

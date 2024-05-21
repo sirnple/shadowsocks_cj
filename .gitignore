@@ -4,6 +4,8 @@
 # Local History for Visual Studio Code
 .history/
 
+# Cangjie
 target/*
+
 
 .cache/*

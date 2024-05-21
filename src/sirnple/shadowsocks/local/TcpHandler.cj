@@ -39,8 +39,8 @@ class TcpHandler {
                     match (checkIsAuthRequest(buf[0..readCount])) {
                         case Some(_) => status = Status.AuthResponse
                         case None => 
-                            log.warn("AuthRequest: read ${buf[0..readCount]} is not a valid auth frame")
-                            break
+                            log.warn("AuthRequest: read ${buf[0..readCount]} is not a valid auth frame, please try again")
+                            continue
                     }
                 case AuthResponse =>
                     log.debug("Status AuthResponse")
@@ -55,8 +55,8 @@ class TcpHandler {
                             dstAddr = Some(DstAddr(atyp, addr, port))
                             status = Status.AddressNegotiationResponse
                         case None => 
-                            log.warn("AddressNegotiationRequest: read ${buf[0..readCount]} is not a valid address negotiation frame")
-                            break
+                            log.warn("AddressNegotiationRequest: read ${buf[0..readCount]} is not a valid address negotiation frame, please try again")
+                            continue
                     }
                 case AddressNegotiationResponse =>
                     log.debug("Status AddressNegotiationResponse")
@@ -69,7 +69,8 @@ class TcpHandler {
                             clientSock.write(buildSuccessNegotiationResponse(addr.atyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))
                             status = Status.Connected
                         case None => 
-                            log.warn("AddressNegotiationResponse: dstAddr is None")
+                            log.warn("AddressNegotiationResponse: dstAddr is None, need to wait for AddressNegotiationRequest")
+                            status = Status.AddressNegotiationRequest
                     }
                 case Connected =>
                     log.debug("Status Connected")
@@ -77,20 +78,18 @@ class TcpHandler {
                     let readCount = clientSock.read(buf)
                     if (readCount != 0) {
                         let packet = buildSsPacket(buf[0..readCount])
-                        log.debug("Send ${packet}")
                         remoteSock.getOrThrow().write(packet)
                     } else {
                         status = RelayUpwardFinished
                     }
                 case RelayUpwardFinished =>
-                    log.debug("Status LocalClientClosed")
+                    log.debug("Status RelayUpwardFinished")
                     remoteSock.getOrThrow().close()
                     let buf = Array<Byte>(4096, item: 0)
                     let readCount = remoteSock.getOrThrow().read(buf)
                     if(readCount != 0) {
                         clientSock.write(unBuildSsPacket(buf[0..readCount]))
                     } else {
-                        remoteSock.getOrThrow().close()
                         status = Status.RelayDownwardFinished
                     }
                 case RelayDownwardFinished =>
@@ -99,8 +98,17 @@ class TcpHandler {
                     status = Status.Disconnected
                 case Disconnected =>
                     log.debug("Status Disconnected")
+                    match (remoteSock) {
+                        case Some(s) => s.close()
+                        case None => ()
+                    }
+                    if (!clientSock.isClosed()) {
+                        clientSock.close()
+                    }
                     status = Status.Destory
-                case _ => throw Exception("Not support destory resources")
+                case _ =>
+                    log.debug("Status Destory")
+                    break
             }
         }
     }

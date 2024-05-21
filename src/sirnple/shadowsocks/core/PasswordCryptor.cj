@@ -7,8 +7,10 @@ from crypto4cj import utils.*
 from std import collection.ArrayList
 from std import convert.Parsable
 from std import random.Random
+from std import reflect.TypeInfo
 
 public class PasswordCryptor <: Cryptor {
+    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LogLevel.ALL, Console.stdOut)
     private let algorithm: String
     private let keyLen: Int32
     private let encryptMode: String
@@ -19,7 +21,8 @@ public class PasswordCryptor <: Cryptor {
         keyLen = Int32.parse(method.split("-")[1])
         assert(keyLen == 128 || keyLen == 192 || keyLen == 256, message: "Only support keyLen: 128/192/256")
         encryptMode = method.split("-")[2]
-        assert(encryptMode.toAsciiLower() == "cbc", message: "Only support encryptMode: cbc")
+        // 目前只支持cfb，因为cfb可以不用分组，实现比较简单
+        assert(encryptMode.toAsciiLower() == "cfb", message: "Only support encryptMode: cbc")
     }
 
     public func encrypt(data: Array<Byte>): (Array<Byte>, Array<Byte>) {
@@ -37,7 +40,7 @@ public class PasswordCryptor <: Cryptor {
     }
 
     private func genIv(ivLen: UInt8): Array<Byte> {
-        return Array<Byte>(Int64(ivLen), item: 0)
+        Random().nextUInt8s(Array<Byte>(Int64(ivLen), item: 0))
     }
 
     private func generateKey(): Array<Byte> {
@@ -51,47 +54,34 @@ public class PasswordCryptor <: Cryptor {
     }
 
     private func randomSalt(): Array<Byte> {
-        return Random().nextUInt8s(Array<Byte>(16, item: 0))
+        return [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10] // 暂时使用固定盐值，省去local和remote的密钥协商
+        // return Random().nextUInt8s(Array<Byte>(16, item: 0))
     }
 
     private func aesEncrypt(data: Array<UInt8>): (Array<Byte>, Array<UInt8>) {
         var key = AESKEY()
-        var outside: Array<UInt8> = Array<UInt8>(Int64(AES_BLOCK_SIZE), item: 0)
+        var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
         var keyRet = aesSetEncryptKey(generateKey(), keyLen, key)
-        var groupedData: ArrayList<Array<UInt8>> = zeroPadding(data)
-        var res: ArrayList<UInt8> = ArrayList<UInt8>()
         let iv = genIv(UInt8(AES_BLOCK_SIZE))
         match (encryptMode) {
-            case "cbc" =>
-                for( i in 0..groupedData.size ) {
-                    aesCbcEncrypt(groupedData[i], outside, key, iv, AES_ENCRYPT)
-                    res.appendAll(outside)
-                }   
-            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cbc")
+            case "cfb" =>
+                aesCfb8Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
+            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        log.debug("aesEncrypt iv: ${iv}")
-        return (iv, res.toArray())
-    }
-
-    private func zeroPadding(data: Array<UInt8>): ArrayList<Array<Byte>> {
-        return arrayTo2Array(data, Int64(AES_BLOCK_SIZE))
+        log.debug("aesEncrypt iv: ${iv}, data: ${data}, encrypted: ${outside}")
+        return (iv, outside)
     }
 
     private func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {
-        log.debug("aesDecrypt iv: ${iv}")
         var key = AESKEY()
-        var outside: Array<UInt8> = Array<UInt8>(Int64(AES_BLOCK_SIZE), item: 0)
-        var keyRet = aesSetDecryptKey(generateKey(), keyLen, key)
-        var groupedData: ArrayList<Array<UInt8>> = zeroPadding(data)
-        var res: ArrayList<UInt8> = ArrayList<UInt8>()
+        var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
+        var keyRet = aesSetEncryptKey(generateKey(), keyLen, key)
         match (encryptMode) {
-            case "cbc" =>
-                for( i in 0..groupedData.size ) {
-                    aesCbcEncrypt(groupedData[i], outside, key, iv, AES_DECRYPT)
-                    res.appendAll(outside)
-                }   
-            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cbc")
+            case "cfb" =>
+                aesCfb8Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)
+            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        return res.toArray()
+        log.debug("aesDecrypt iv: ${iv}, data: ${data}, decrypted: ${outside}")
+        return outside
     }
 }
