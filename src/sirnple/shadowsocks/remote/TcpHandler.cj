@@ -44,8 +44,16 @@ class TcpHandler {
                                                     sock.getOrThrow().connect()
                                                     sock.getOrThrow().write(data)
                                                 } else if (atyp == ATYP_DOMAINNAME) {
-                                                    log.warn("Not support domain name yet")
-                                                    status = Status.Disconnected
+                                                    let resolvedAddr = SocketAddress.resolve(String.fromUtf8(addr), UInt16(port[0])<<8 | UInt16(port[1]))
+                                                    match (resolvedAddr) {
+                                                        case Some(a) =>
+                                                            sock = TcpSocket(a)
+                                                            sock.getOrThrow().connect()
+                                                            sock.getOrThrow().write(data)
+                                                        case None =>
+                                                            log.warn("Can't resolve domain name ${String.fromUtf8(addr)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
+                                                            status = Status.Disconnected
+                                                    }
                                                 }
                                         }
                                     case None =>

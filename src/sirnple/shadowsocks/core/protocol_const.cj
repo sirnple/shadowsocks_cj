@@ -97,7 +97,7 @@ public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, B
         }
         let domainName = frame[5..5 + Int64(domainLen)]
         let port = frame[5 + Int64(domainLen)..5 + Int64(domainLen) + 2]
-        return (ver, cmd, rsv, atyp, [domainLen] + domainName, port)
+        return (ver, cmd, rsv, atyp, domainName, port)
     }
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
     return None
@@ -114,6 +114,7 @@ public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
 func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, Array<Byte>) {
+    log.debug((UInt16(port[0])<<8 | UInt16(port[1])).toString())
     let host = SocketAddress.resolve(String.fromUtf8(domainName), UInt16(port[0])<<8 | UInt16(port[1]))
     match (host) {
         case Some(h) =>
