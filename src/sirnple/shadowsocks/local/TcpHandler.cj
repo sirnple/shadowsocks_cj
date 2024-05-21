@@ -74,14 +74,43 @@ class TcpHandler {
                     }
                 case Connected =>
                     log.debug("Status Connected")
-                    let buf = Array<Byte>(4096, item: 0)
-                    let readCount = clientSock.read(buf)
-                    if (readCount != 0) {
-                        let packet = buildSsPacket(buf[0..readCount])
-                        remoteSock.getOrThrow().write(packet)
-                    } else {
-                        status = RelayUpwardFinished
+                    let upwardRelay = spawn {
+                        while (true) {
+                            let buf = Array<Byte>(4096, item: 0)
+                            let readCount = clientSock.read(buf)
+                            if (readCount != 0) {
+                                let packet = buildSsPacket(buf[0..readCount])
+                                remoteSock.getOrThrow().write(packet)
+                            } else {
+                                break
+                            }
+                        }
                     }
+                    let downwardRelay = spawn {
+                        while (true) {
+                            if (remoteSock.isNone()) {
+                                continue
+                            }
+                            let buf = Array<Byte>(4096, item: 0)
+                            try {
+                                let readCount = remoteSock.getOrThrow().read(buf)
+                                if(readCount != 0) {
+                                    clientSock.write(unBuildSsPacket(buf[0..readCount]))
+                                } else {
+                                    break
+                                }
+                            } catch (e: SocketException) {
+                                if (e.message.contains("Socket is not connected")) {
+                                    continue
+                                } else {
+                                    log.warn("Read from remote server failed, ${e.message}")
+                                }
+                            }
+                        }
+                    }
+                    upwardRelay.get()
+                    downwardRelay.get()
+                    status = Disconnected
                 case RelayUpwardFinished =>
                     log.debug("Status RelayUpwardFinished")
                     remoteSock.getOrThrow().close()

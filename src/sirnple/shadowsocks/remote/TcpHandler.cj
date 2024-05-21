@@ -24,45 +24,68 @@ class TcpHandler {
                     status = Status.Connected
                 case Status.Connected =>
                     log.debug("Status Connected")
-                    let buf = Array<Byte>(4096, item: 0)
-                    let readCount = clientSock.read(buf)
-                    if (readCount != 0) {
-                        let packet = unBuildUpwardSsPacket(cryptor, buf[0..readCount])
-                        match (packet) {
-                            case Some((atyp, addr, port, data)) => 
-                                match (sock) {
-                                    case Some(_) => ()
-                                    case None => 
-                                        if (atyp == ATYP_IPv4) {
-                                            sock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, addr, UInt16(port[0])<<8 | UInt16(port[1])))
-                                            sock.getOrThrow().connect()
-                                        } else if (atyp == ATYP_IPv6) {
-                                            sock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, addr, UInt16(port[0])<<8 | UInt16(port[1])))
-                                            sock.getOrThrow().connect()
-                                        } else if (atyp == ATYP_DOMAINNAME) {
-                                            log.warn("Not support domain name yet")
-                                            status = Status.Disconnected
+                    let upwardRelay = spawn {
+                        while (true) {
+                            let buf = Array<Byte>(4096, item: 0)
+                            let readCount = clientSock.read(buf)
+                            if (readCount != 0) {
+                                let packet = unBuildUpwardSsPacket(cryptor, buf[0..readCount])
+                                match (packet) {
+                                    case Some((atyp, addr, port, data)) => 
+                                        match (sock) {
+                                            case Some(_) => ()
+                                            case None => 
+                                                if (atyp == ATYP_IPv4) {
+                                                    sock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, addr, UInt16(port[0])<<8 | UInt16(port[1])))
+                                                    sock.getOrThrow().connect()
+                                                } else if (atyp == ATYP_IPv6) {
+                                                    sock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, addr, UInt16(port[0])<<8 | UInt16(port[1])))
+                                                    sock.getOrThrow().connect()
+                                                } else if (atyp == ATYP_DOMAINNAME) {
+                                                    log.warn("Not support domain name yet")
+                                                    status = Status.Disconnected
+                                                }
                                         }
+                                        sock.getOrThrow().write(data)
+                                    case None =>
+                                        log.warn("Read ${buf[0..readCount]} is not a valid upstream shadowsocks packet")
+                                        status = Status.Disconnected
                                 }
-                                sock.getOrThrow().write(data)
-                            case None =>
-                                log.warn("Read ${buf[0..readCount]} is not a valid upstream shadowsocks packet")
-                                status = Status.Disconnected
+                            } else {
+                                break
+                            }
                         }
-                    } else {
-                        status = Status.RelayUpwardFinished
                     }
+                    let downwardRelay = spawn {
+                        while (true) {
+                            if (sock.isNone()) {
+                                continue
+                            }
+                            let buf = Array<Byte>(4096, item: 0)
+                            try {
+                                let readCount = sock.getOrThrow().read(buf)
+                                if (readCount != 0) {
+                                    let packet = buildDownwardSsPacket(cryptor, buf[0..readCount])
+                                    clientSock.write(packet)
+                                } else {
+                                    break
+                                }
+                            } catch (e: SocketException) {
+                                if (e.message.contains("Socket is not connected")) {
+                                    continue
+                                } else {
+                                    log.warn("Read from remote server failed, ${e.message}")
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    upwardRelay.get()
+                    downwardRelay.get()
+                    status = Status.Disconnected
                 case Status.RelayUpwardFinished =>
                     log.debug("Status RelayUpwardFinished")
                     sock.getOrThrow().close()
-                    let buf = Array<Byte>(4096, item: 0)
-                    let readCount = sock.getOrThrow().read(buf)
-                    if (readCount != 0) {
-                        let packet = buildDownwardSsPacket(cryptor, buf[0..readCount])
-                        clientSock.write(packet)
-                    } else {
-                        status = Status.RelayDownwardFinished
-                    }
                 case Status.RelayDownwardFinished => 
                     log.debug("Status RelayDownwardFinished")
                     clientSock.close()
