@@ -1,7 +1,7 @@
 package sirnple.shadowsocks.local
 
 public class TcpServer {
-    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, ALL, Console.stdOut)
+    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, WARN, Console.stdOut)
     private let config = Config.readConfig()
     private let cryptor = PasswordCryptor(config.password, config.method)
     public TcpServer() {}

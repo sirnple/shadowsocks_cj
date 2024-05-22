@@ -9,7 +9,7 @@ from std import console.Console
 from std import socket.*
 
 public class TcpServer {
-    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, ALL, Console.stdOut)
+    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, WARN, Console.stdOut)
     private let config = Config.readConfig()
 
     public func start() {

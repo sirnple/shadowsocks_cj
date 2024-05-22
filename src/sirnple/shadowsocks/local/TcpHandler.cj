@@ -10,7 +10,7 @@ from std import reflect.*
 from std import console.Console
 
 class TcpHandler {
-    private static let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LogLevel.ALL, Console.stdOut)
+    private static let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LogLevel.WARN, Console.stdOut)
     private var remoteSock: Option<TcpSocket> = None
     private var status: Status = Status.Init
     private var dstAddr: Option<DstAddr> = None
@@ -76,10 +76,11 @@ class TcpHandler {
                     log.debug("Status Connected")
                     let upwardRelay = spawn {
                         while (true) {
-                            let buf = Array<Byte>(4096, item: 0)
+                            let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
                             let readCount = clientSock.read(buf)
                             if (readCount != 0) {
                                 let packet = buildSsPacket(buf[0..readCount])
+                                assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                                 remoteSock.getOrThrow().write(packet)
                             } else {
                                 break
@@ -91,7 +92,7 @@ class TcpHandler {
                             if (remoteSock.isNone()) {
                                 continue
                             }
-                            let buf = Array<Byte>(4096, item: 0)
+                            let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
                             try {
                                 let readCount = remoteSock.getOrThrow().read(buf)
                                 if(readCount != 0) {

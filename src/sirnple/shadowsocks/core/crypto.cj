@@ -9,12 +9,19 @@ from std import convert.Parsable
 from std import random.Random
 from std import reflect.TypeInfo
 
+public interface Cryptor {
+    func encrypt(data: Array<Byte>): (Array<Byte>, Array<Byte>)
+    func decrypt(iv: Array<Byte>, data: Array<Byte>): Array<Byte>
+}
+
+public let IV_LEN = Int64(AES_BLOCK_SIZE)
 public class PasswordCryptor <: Cryptor {
-    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LogLevel.ALL, Console.stdOut)
+    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LogLevel.WARN, Console.stdOut)
     private let algorithm: String
     private let keyLen: Int32
     private let encryptMode: String
     private var myKey: Option<Array<Byte>> = None
+
     public PasswordCryptor(private let password: String, private let method: String) {
         algorithm = method.split("-")[0]
         assert(algorithm.toAsciiLower() == "aes", message: "Only support algorithm: aes")
@@ -61,8 +68,8 @@ public class PasswordCryptor <: Cryptor {
     private func aesEncrypt(data: Array<UInt8>): (Array<Byte>, Array<UInt8>) {
         var key = AESKEY()
         var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
-        var keyRet = aesSetEncryptKey(generateKey(), keyLen, key)
-        let iv = genIv(UInt8(AES_BLOCK_SIZE))
+        aesSetEncryptKey(generateKey(), keyLen, key)
+        let iv = genIv(UInt8(IV_LEN))
         match (encryptMode) {
             case "cfb" =>
                 aesCfb8Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
@@ -75,7 +82,7 @@ public class PasswordCryptor <: Cryptor {
     private func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {
         var key = AESKEY()
         var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
-        var keyRet = aesSetEncryptKey(generateKey(), keyLen, key)
+        aesSetEncryptKey(generateKey(), keyLen, key)
         match (encryptMode) {
             case "cfb" =>
                 aesCfb8Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)

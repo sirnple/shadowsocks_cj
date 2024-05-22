@@ -1,10 +1,10 @@
 package sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.core.{Cryptor, buildDownwardSsPacket, unBuildUpwardSsPacket, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME}
+import sirnple.shadowsocks.core.{Cryptor, buildDownwardSsPacket, unBuildUpwardSsPacket, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN}
 import sirnple.shadowsocks.util.assert
 
 class TcpHandler {
-    private let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LogLevel.ALL, Console.stdOut)
+    private let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LogLevel.WARN, Console.stdOut)
     private var status = Status.Init
     private var sock: Option<TcpSocket> = None
     public TcpHandler(let config: Config, let clientSock: TcpSocket, let cryptor: Cryptor) {}
@@ -26,7 +26,7 @@ class TcpHandler {
                     log.debug("Status Connected")
                     let upwardRelay = spawn {
                         while (true) {
-                            let buf = Array<Byte>(4096, item: 0)
+                            let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
                             let readCount = clientSock.read(buf)
                             if (readCount != 0) {
                                 let packet = unBuildUpwardSsPacket(cryptor, buf[0..readCount])
@@ -70,11 +70,12 @@ class TcpHandler {
                             if (sock.isNone()) {
                                 continue
                             }
-                            let buf = Array<Byte>(4096, item: 0)
+                            let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN, item: 0)
                             try {
                                 let readCount = sock.getOrThrow().read(buf)
                                 if (readCount != 0) {
                                     let packet = buildDownwardSsPacket(cryptor, buf[0..readCount])
+                                    assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                                     clientSock.write(packet)
                                 } else {
                                     break

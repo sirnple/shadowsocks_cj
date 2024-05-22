@@ -113,6 +113,8 @@ public let REP_TTL_EXPIRED = 0x06u8
 public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
+public let RELAY_BLOCK_SIZE = 65536
+
 func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, Array<Byte>) {
     log.debug((UInt16(port[0])<<8 | UInt16(port[1])).toString())
     let host = SocketAddress.resolve(String.fromUtf8(domainName), UInt16(port[0])<<8 | UInt16(port[1]))
