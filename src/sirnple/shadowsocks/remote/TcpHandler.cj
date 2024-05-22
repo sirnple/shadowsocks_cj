@@ -70,7 +70,7 @@ class TcpHandler {
                             if (sock.isNone()) {
                                 continue
                             }
-                            let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN, item: 0)
+                            let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
                             try {
                                 let readCount = sock.getOrThrow().read(buf)
                                 if (readCount != 0) {
