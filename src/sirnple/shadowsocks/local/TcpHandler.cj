@@ -101,7 +101,7 @@ class TcpHandler {
                                     break
                                 }
                             } catch (e: SocketException) {
-                                if (e.message.contains("Socket is not connected")) {
+                                if (e.message.contains("Socket is not connected") || e.message.contains("Socket is already closed")) {
                                     continue
                                 } else {
                                     log.warn("Read from remote server failed, ${e.message}")
@@ -110,6 +110,7 @@ class TcpHandler {
                         }
                     }
                     upwardRelay.get()
+                    remoteSock.getOrThrow().close()
                     downwardRelay.get()
                     status = Disconnected
                 case RelayUpwardFinished =>
