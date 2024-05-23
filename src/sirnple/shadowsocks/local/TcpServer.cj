@@ -1,8 +1,10 @@
 package sirnple.shadowsocks.local
 
+import sirnple.shadowsocks.config.LOG_CONFIG
+
 public class TcpServer {
-    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, WARN, Console.stdOut)
-    private let config = Config.readConfig()
+    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
+    private let config = ShadowsocksConfig.readConfig()
     private let cryptor = PasswordCryptor(config.password, config.method)
     public TcpServer() {}
     public func start() {

@@ -49,7 +49,7 @@ public let CMD_BIND = 0x02u8
 public let CMD_UDP_ASSOCIATE = 0x03u8
 
 public let RESERVED = 0x00u8
-let log = SimpleLogger(@sourcePackage(), DEBUG, Console.stdOut)
+let log = SimpleLogger(@sourcePackage(), LOG_CONFIG.logLevel, Console.stdOut)
 public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, Byte, Array<Byte>, Array<Byte>) {
     if (frame.size < 4) {
         log.debug("Size of frame must be at least 4, but is ${frame.size}")
@@ -164,29 +164,25 @@ public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array
 }
 
 
-public func unBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): Array<Byte> {
+/** 
+ * 解包 SS 包
+ * @param cryptor 解密器
+ * @param ssPacket SS 包，iv.len + iv + encryptedData
+ * @return Some((iv, atyp, dst.addr, dst.port, data)) or None
+ */
+public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Array<Byte>, Array<Byte>) {
+    assert(ssPacket.size > IV_LEN + 1)
+    if (ssPacket.size <= IV_LEN + 1) {
+        log.debug("Unbuild SS packet failed, because invalid ssPacket, size must be greater than ${IV_LEN + 1}, but is ${ssPacket.size}")
+        return None
+    }
     let ivLen = ssPacket[0]
+    if (ssPacket.size < Int64(ivLen) + 1) {
+        log.debug("Unbuild SS packet failed, because invalid ssPacket, ivLen must be greater than ${Int64(ivLen) + 1}, but is ${ssPacket.size}")
+        return None
+    }
     let iv = ssPacket[1..Int64(ivLen) + 1]
     let decryptData = cryptor.decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
-    return decryptData
+    return (iv, decryptData)
 }
 
-public func unBuildUpwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Byte, Array<Byte>, Array<Byte>, Array<Byte>) {
-    let data = unBuildSsPacket(cryptor, ssPacket)
-    let atyp = data[0]
-    if (atyp == ATYP_IPv4) {
-        return (atyp, data[1..5], data[5..7], data[7..data.size])
-    }
-    if (atyp == ATYP_IPv6) {
-        return (atyp, data[1..17], data[17..19], data[19..data.size])
-    }
-    if (atyp == ATYP_DOMAINNAME) {
-        return (atyp, data[1..2], data[2..4], data[4..data.size])
-    }
-    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
-    return None
-}
-
-public func unBuildDownwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): Array<Byte> {
-    unBuildSsPacket(cryptor, ssPacket)
-}

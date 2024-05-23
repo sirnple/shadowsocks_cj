@@ -1,6 +1,6 @@
 package sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.config.Config
+import sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
 import sirnple.shadowsocks.core.PasswordCryptor
 
 from std import log.*
@@ -9,8 +9,8 @@ from std import console.Console
 from std import socket.*
 
 public class TcpServer {
-    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, WARN, Console.stdOut)
-    private let config = Config.readConfig()
+    private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
+    private let config = ShadowsocksConfig.readConfig()
 
     public func start() {
         try(serverSocket = TcpServerSocket(bindAt: SocketAddress(config.server, config.serverPort))) {

@@ -4,8 +4,8 @@ from encoding import json.stream.*
 from std import fs.*
 from std import io.*
 
-public struct Config <: JsonDeserializable<Config> & ToString {
-    public Config(
+public struct ShadowsocksConfig <: JsonDeserializable<ShadowsocksConfig> & ToString {
+    public ShadowsocksConfig(
         public let server: String,
         public let serverPort: UInt16,
         public let password: String,
@@ -14,7 +14,7 @@ public struct Config <: JsonDeserializable<Config> & ToString {
         public let localPort: UInt16
     ) {}
 
-    public static func fromJson(r: JsonReader): Config {
+    public static func fromJson(r: JsonReader): ShadowsocksConfig {
         var server: String = ""
         var port: UInt16 = 0
         var password: String = ""
@@ -43,7 +43,7 @@ public struct Config <: JsonDeserializable<Config> & ToString {
                 case _ => throw Exception("Read config error, parse error.")
             }
         }
-        return Config(server, port, password, method, local, localPort)
+        return ShadowsocksConfig(server, port, password, method, local, localPort)
     }
 
     public override func toString(): String {
@@ -58,7 +58,7 @@ public struct Config <: JsonDeserializable<Config> & ToString {
         }"""
     }
 
-    public static func readConfig(): Config {
-        Config.fromJson(JsonReader(File("shadowsocks.json", OpenOption.Open(true, false))))
+    public static func readConfig(): ShadowsocksConfig {
+        ShadowsocksConfig.fromJson(JsonReader(File("shadowsocks.json", OpenOption.Open(true, false))))
     }
 }

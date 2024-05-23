@@ -1,6 +1,7 @@
 package sirnple.shadowsocks.core
 
 import sirnple.shadowsocks.util.assert
+import sirnple.shadowsocks.config.LOG_CONFIG
 from crypto4cj import pbkdf2cj.*
 from crypto4cj import aescj.*
 from crypto4cj import utils.*
@@ -16,7 +17,7 @@ public interface Cryptor {
 
 public let IV_LEN = Int64(AES_BLOCK_SIZE)
 public class PasswordCryptor <: Cryptor {
-    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LogLevel.WARN, Console.stdOut)
+    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
     private let algorithm: String
     private let keyLen: Int32
     private let encryptMode: String
@@ -75,7 +76,6 @@ public class PasswordCryptor <: Cryptor {
                 aesCfb8Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        log.debug("aesEncrypt iv: ${iv}, data: ${data}, encrypted: ${outside}")
         return (iv, outside)
     }
 
@@ -88,7 +88,6 @@ public class PasswordCryptor <: Cryptor {
                 aesCfb8Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        log.debug("aesDecrypt iv: ${iv}, data: ${data}, decrypted: ${outside}")
         return outside
     }
 }
