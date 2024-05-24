@@ -66,7 +66,12 @@ class TcpHandler {
                             remoteSock.getOrThrow().connect()
                             let bindAddr = remoteSock.getOrThrow().localAddress.address
                             let bindPort = remoteSock.getOrThrow().localAddress.port
-                            clientSock.write(buildSuccessNegotiationResponse(addr.atyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))
+                            let bindAtyp = match (remoteSock.getOrThrow().localAddress.kind) {
+                                case SocketAddressKind.IPv4 => ATYP_IPv4
+                                case SocketAddressKind.IPv6 => ATYP_IPv6
+                                case _ => throw Exception("Should never happen")
+                            }
+                            clientSock.write(buildSuccessNegotiationResponse(bindAtyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))
                             status = Status.Connected
                         case None => 
                             log.warn("AddressNegotiationResponse: dstAddr is None, need to wait for AddressNegotiationRequest")
