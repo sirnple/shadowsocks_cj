@@ -5,10 +5,10 @@
   cjc-version = "0.50.3"
   compile-option = ""
   description = "nothing here"
-  link-option = ""
+  link-option = "-rpath=lib:runtime"
   name = "shadowsocks_cj"
   output-type = "executable"
   src-dir = ""
   target-dir = ""
   version = "1.0.0"
-  package-configuration = {}
+  package-configuration = { "sirnple.shadowsocks.local" = { output-type = "executable" }, "sirnple.shadowsocks.remote" = { output-type = "executable" } }
