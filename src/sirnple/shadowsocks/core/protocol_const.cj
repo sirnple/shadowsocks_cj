@@ -76,6 +76,7 @@ public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, B
             log.debug("Size of frame must be 10 when ATYP_IPv4, but is ${frame.size}")
             return None
         }
+        log.debug("Address negotiation dst address is ${SocketAddress(IPv4, frame[4..8], UInt16(frame[8])<<8 | UInt16(frame[9]))}")
         return (ver, cmd, rsv, atyp, frame[4..8], frame[8..10])
     }
     if (atyp == ATYP_IPv6) {
@@ -83,6 +84,7 @@ public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, B
             log.debug("Size of frame must be 22 when ATYP_IPv6, but is ${frame.size}")
             return None
         }
+        log.debug("Address negotiation dst address is ${SocketAddress(IPv6, frame[4..20], UInt16(frame[20])<<8 | UInt16(frame[21]))}")
         return (ver, cmd, rsv, atyp, frame[4..20], frame[20..22])
     }
     if (atyp == ATYP_DOMAINNAME) {
@@ -97,6 +99,7 @@ public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, B
         }
         let domainName = frame[5..5 + Int64(domainLen)]
         let port = frame[5 + Int64(domainLen)..5 + Int64(domainLen) + 2]
+        log.debug("Address negotiation dst address is ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
         return (ver, cmd, rsv, atyp, domainName, port)
     }
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
@@ -115,26 +118,6 @@ public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
 public let RELAY_BLOCK_SIZE = 65536
 
-func tryResolveDomainName(domainName: Array<Byte>, port: Array<Byte>): ?(Byte, Array<Byte>) {
-    log.debug((UInt16(port[0])<<8 | UInt16(port[1])).toString())
-    let host = SocketAddress.resolve(String.fromUtf8(domainName), UInt16(port[0])<<8 | UInt16(port[1]))
-    match (host) {
-        case Some(h) =>
-            log.debug("Resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])} to ${h.hostAddress}")
-            match (h.kind) {
-                case SocketAddressKind.IPv4 => (ATYP_IPv4, h.address)
-                case SocketAddressKind.IPv6 => (ATYP_IPv6, h.address)
-                case _ => 
-                    log.debug("Address kind must be ${SocketAddressKind.IPv4} or ${SocketAddressKind.IPv6}, but is ${h.kind}")
-                    None
-            }
-        case None => 
-            println("=================== Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
-            log.debug("=================== Can't resolve domain name ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
-            None
-    }
-}
-
 public func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return [ver, rep, rsv, atyp] + addr + port
 }
@@ -143,19 +126,25 @@ public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port:
     return buildNegotiationResponse(SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, atyp, addr, port)
 }
 
+/** 
+ * 构造 SS 包
+ * @param dstAddtr 目的地址
+ * @param cryptor 解密器
+ * @param rawData 原始数据
+ * @return Some((iv.len, iv, encryptedData)) or None
+ */
 public func buildUpwardSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
-    if (dstAddtr.atyp == ATYP_DOMAINNAME) {
-        return match (tryResolveDomainName(dstAddtr.addr, dstAddtr.port)) {
-            case Some((resolvedAtyp, resolvedAddr)) =>
-                let (iv, encryptedData) = cryptor.encrypt([resolvedAtyp] + resolvedAddr + dstAddtr.port + rawData)
-                [UInt8(iv.size)] + iv + encryptedData
-            case None => 
-                let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-                [UInt8(iv.size)] + iv + encryptedData
-        }
+    if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
+        let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
+        return [UInt8(iv.size)] + iv + encryptedData
     }
-    let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-    [UInt8(iv.size)] + iv + encryptedData
+    if (dstAddtr.atyp == ATYP_DOMAINNAME) {
+        let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData)
+        return [UInt8(iv.size)] + iv + encryptedData
+    }
+
+    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
+    throw Exception("Should never happen")
 }
 
 public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
@@ -168,7 +157,7 @@ public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array
  * 解包 SS 包
  * @param cryptor 解密器
  * @param ssPacket SS 包，iv.len + iv + encryptedData
- * @return Some((iv, atyp, dst.addr, dst.port, data)) or None
+ * @return Some((iv, decryptedData)) or None
  */
 public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Array<Byte>, Array<Byte>) {
     assert(ssPacket.size > IV_LEN + 1)

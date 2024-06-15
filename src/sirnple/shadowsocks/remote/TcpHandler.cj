@@ -135,13 +135,21 @@ class TcpHandler {
             case Some((iv, data)) =>
                 let atyp = data[0]
                 if (atyp == ATYP_IPv4) {
+                    log.debug("Unbuild SS packet, dst address is ${SocketAddress(IPv4, data[1..5], UInt16(data[5])<<8 | UInt16(data[6]))}")
                     return (iv, atyp, data[1..5], data[5..7], data[7..data.size])
                 }
                 if (atyp == ATYP_IPv6) {
+                    log.debug("Unbuild SS packet, dst address is ${SocketAddress(IPv6, data[1..17], UInt16(data[17])<<8 | UInt16(data[18]))}")
                     return (iv, atyp, data[1..17], data[17..19], data[19..data.size])
                 }
                 if (atyp == ATYP_DOMAINNAME) {
-                    return (iv, atyp, data[1..2], data[2..4], data[4..data.size])
+                    // data格式: atyp + domainNameLen + domainName + port + payload
+                    let domainNameLen = data[1]
+                    let domainName = data[2..Int64(domainNameLen) + 2]
+                    let port = data[Int64(domainNameLen) + 2..Int64(domainNameLen) + 4]
+                    let payload = data[Int64(domainNameLen) + 4..data.size]
+                    log.debug("Unbuild SS packet, dst address is ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
+                    return (iv, atyp, domainName, port, payload)
                 }
                 log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
                 return None
