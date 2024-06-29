@@ -62,30 +62,51 @@ class TcpHandler {
                     log.debug("Status AddressNegotiationResponse")
                     match(dstAddr) {
                         case Some(addr) => 
-                            remoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
-                            remoteSock.getOrThrow().connect()
-                            let bindAddr = remoteSock.getOrThrow().localAddress.address
-                            let bindPort = remoteSock.getOrThrow().localAddress.port
-                            let bindAtyp = match (remoteSock.getOrThrow().localAddress.kind) {
+                            let newRemoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
+                            newRemoteSock.connect()
+                            remoteSock = Some(newRemoteSock)
+                            let bindAddr = newRemoteSock.localAddress.address
+                            let bindPort = newRemoteSock.localAddress.port
+                            let bindAtyp = match (newRemoteSock.localAddress.kind) {
                                 case SocketAddressKind.IPv4 => ATYP_IPv4
                                 case SocketAddressKind.IPv6 => ATYP_IPv6
                                 case _ => throw Exception("Should never happen")
                             }
                             clientSock.write(buildSuccessNegotiationResponse(bindAtyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))
-                            status = Status.Connected
+                            status = Connected
+
                         case None => 
                             log.warn("AddressNegotiationResponse: dstAddr is None, need to wait for AddressNegotiationRequest")
                             status = Status.AddressNegotiationRequest
                     }
                 case Connected =>
                     log.debug("Status Connected")
+                    if (remoteSock.isNone() || dstAddr.isNone()) {
+                        log.warn("Invalid status, this handler is broken, please retry connect")
+                        status = Destory
+                    }
+
+                    let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
+                    let readCount = clientSock.read(buf)
+                    if (readCount == 0) {
+                        log.debug("Client socket is closed and nothing is relayed")
+                        status = Disconnected
+                        break
+                    }
+
+                    log.debug("Receive first packet ${readCount} bytes from client")
+                    let (iv, packet) = buildFirstSsPacketWhichHasIv(dstAddr.getOrThrow(), cryptor, buf[0..readCount])
+                    assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
+                    remoteSock.getOrThrow().write(packet)
+                    log.debug("Send ${packet.size} bytes to remote server")
+
                     let upwardRelay = spawn {
                         while (true) {
                             let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
                             let readCount = clientSock.read(buf)
                             if (readCount != 0) {
                                 log.debug("Receive ${readCount} bytes from client")
-                                let packet = buildSsPacket(buf[0..readCount])
+                                let packet = buildFollowSsPacketWhichNoIv(dstAddr.getOrThrow(), cryptor, iv: iv, rawData: buf[0..readCount])
                                 assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                                 remoteSock.getOrThrow().write(packet)
                                 log.debug("Send ${packet.size} bytes to remote server")
@@ -94,12 +115,9 @@ class TcpHandler {
                             }
                         }
                     }
+
                     let downwardRelay = spawn {
-                        var iv: Option<Array<Byte>> = None
                         while (true) {
-                            if (remoteSock.isNone()) {
-                                continue
-                            }
                             let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
                             try {
                                 let readCount = remoteSock.getOrThrow().read(buf)
@@ -107,21 +125,9 @@ class TcpHandler {
                                     break
                                 }
                                 log.debug("Receive ${readCount} bytes from remote server")
-                                match (iv) {
-                                    case Some(iv0) =>
-                                        let decrypted = cryptor.decrypt(iv0, buf[0..readCount])
-                                        clientSock.write(decrypted)
-                                        log.debug("Send ${decrypted.size} bytes to client")
-                                    case None =>
-                                        if (let Some((iv0, decrypted)) <- tryUnBuildDownwardSsPacket(buf[0..readCount])) {
-                                            iv = Some(iv0)
-                                            clientSock.write(decrypted)
-                                            log.debug("Send ${decrypted.size} bytes to client")
-                                        } else {
-                                            log.warn("Receive from remote server is not a valid downward ss packet, please try again, ${buf[0..readCount]}")
-                                            break
-                                        }
-                                }
+                                let decrypted = cryptor.decryptWithGivenIv(iv, buf[0..readCount])
+                                clientSock.write(decrypted)
+                                log.debug("Send ${decrypted.size} bytes to client")
                             } catch (e: SocketException) {
                                 if (e.message.contains("Socket is not connected") || e.message.contains("Socket is already closed")) {
                                     continue
@@ -153,22 +159,5 @@ class TcpHandler {
                     break
             }
         }
-    }
-
-    private func buildSsPacket(rawData: Array<Byte>): Array<Byte> {
-        return match (dstAddr) {
-            case Some(addr) => buildUpwardSsPacket(addr, cryptor, rawData)
-            case None => throw Exception("Illegal status, addres has not been negotiation yet")
-        }
-    }
-
-    /** 
-    * 解包 SS 包， 这里是下行的TCP包，没有包含有DST.ADDR和DST.PORT
-    * @param cryptor 解密器
-    * @param ssPacket SS 包，iv.len + iv + encryptedData
-    * @return Some((iv, data)) or None
-    */
-    private func tryUnBuildDownwardSsPacket(ssPacket: Array<Byte>): ?(Array<Byte>, Array<Byte>) {
-        tryUnBuildSsPacket(cryptor, ssPacket)
     }
 }

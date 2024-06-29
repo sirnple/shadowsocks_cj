@@ -11,8 +11,9 @@ from std import random.Random
 from std import reflect.TypeInfo
 
 public interface Cryptor {
-    func encrypt(data: Array<Byte>): (Array<Byte>, Array<Byte>)
-    func decrypt(iv: Array<Byte>, data: Array<Byte>): Array<Byte>
+    func encryptWithNewIv(data: Array<Byte>): (iv: Array<Byte>, encryptedData: Array<Byte>)
+    func encryptWithGivenIv(data: Array<Byte>, iv: Array<Byte>): Array<Byte>
+    func decryptWithGivenIv(iv: Array<Byte>, data: Array<Byte>): Array<Byte>
 }
 
 public let IV_LEN = Int64(AES_BLOCK_SIZE)
@@ -33,14 +34,19 @@ public class PasswordCryptor <: Cryptor {
         assert(encryptMode.toAsciiLower() == "cfb", message: "Only support encryptMode: cbc")
     }
 
-    public func encrypt(data: Array<Byte>): (Array<Byte>, Array<Byte>) {
+    public func encryptWithNewIv(data: Array<Byte>): (iv: Array<Byte>, encryptedData: Array<Byte>) {
+        let iv = genIv(UInt8(IV_LEN))
+        return (iv, encryptWithGivenIv(data, iv))
+    }
+
+    public func encryptWithGivenIv(data: Array<Byte>, iv: Array<Byte>): Array<Byte> {
         return match (algorithm) {
-            case "aes" => return aesEncrypt(data)
+            case "aes" => return aesEncrypt(data, iv)
             case _ => throw Exception("Not support algorithm: ${algorithm}, only support aes")
         }
     }
 
-    public func decrypt(iv: Array<Byte>, data: Array<Byte>): Array<Byte> {
+    public func decryptWithGivenIv(iv: Array<Byte>, data: Array<Byte>): Array<Byte> {
         return match (algorithm) {
             case "aes" => return aesDecrypt(iv, data)
             case _ => throw Exception("Not support algorithm: ${algorithm}, only support aes")
@@ -66,17 +72,16 @@ public class PasswordCryptor <: Cryptor {
         // return Random().nextUInt8s(Array<Byte>(16, item: 0))
     }
 
-    private func aesEncrypt(data: Array<UInt8>): (Array<Byte>, Array<UInt8>) {
+    private func aesEncrypt(data: Array<UInt8>, iv: Array<UInt8>): Array<UInt8> {
         var key = AESKEY()
         var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
         aesSetEncryptKey(generateKey(), keyLen, key)
-        let iv = genIv(UInt8(IV_LEN))
         match (encryptMode) {
             case "cfb" =>
                 aesCfb8Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        return (iv, outside)
+        return outside
     }
 
     private func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {

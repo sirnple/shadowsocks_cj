@@ -9,3 +9,6 @@ target/*
 *.macrocall
 
 .cache/*
+
+# Build
+*.zip

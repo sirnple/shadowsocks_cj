@@ -126,40 +126,37 @@ public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port:
     return buildNegotiationResponse(SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, atyp, addr, port)
 }
 
-/** 
- * 构造 SS 包
- * @param dstAddtr 目的地址
- * @param cryptor 解密器
- * @param rawData 原始数据
- * @return Some((iv.len, iv, encryptedData)) or None
- */
-public func buildUpwardSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
+public func buildFirstSsPacketWhichHasIv(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
-        let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-        return [UInt8(iv.size)] + iv + encryptedData
+        let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
+        return (iv, [UInt8(iv.size)] + iv + encryptedData)
     }
     if (dstAddtr.atyp == ATYP_DOMAINNAME) {
-        let (iv, encryptedData) = cryptor.encrypt([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData)
-        return [UInt8(iv.size)] + iv + encryptedData
+        let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData)
+        return (iv, [UInt8(iv.size)] + iv + encryptedData)
     }
 
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
     throw Exception("Should never happen")
 }
 
-public func buildDownwardSsPacket(cryptor: Cryptor, rawData: Array<Byte>): Array<Byte> {
-    let (iv, encryptedData) = cryptor.encrypt(rawData)
-    [UInt8(iv.size)] + iv + encryptedData
+public func buildFollowSsPacketWhichNoIv(dstAddtr: DstAddr, cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
+    if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
+        return cryptor.encryptWithGivenIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData, iv)
+    }
+    if (dstAddtr.atyp == ATYP_DOMAINNAME) {
+        return cryptor.encryptWithGivenIv([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData, iv)
+    }
+
+    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
+    throw Exception("Should never happen")
 }
 
+public func buildDownwardSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
+    [UInt8(iv.size)] + iv + cryptor.encryptWithGivenIv(rawData, iv)
+}
 
-/** 
- * 解包 SS 包
- * @param cryptor 解密器
- * @param ssPacket SS 包，iv.len + iv + encryptedData
- * @return Some((iv, decryptedData)) or None
- */
-public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Array<Byte>, Array<Byte>) {
+public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(iv: Array<Byte>, decryptedData: Array<Byte>) {
     assert(ssPacket.size > IV_LEN + 1)
     if (ssPacket.size <= IV_LEN + 1) {
         log.debug("Unbuild SS packet failed, because invalid ssPacket, size must be greater than ${IV_LEN + 1}, but is ${ssPacket.size}")
@@ -171,7 +168,26 @@ public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(Array
         return None
     }
     let iv = ssPacket[1..Int64(ivLen) + 1]
-    let decryptData = cryptor.decrypt(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
+    let decryptData = cryptor.decryptWithGivenIv(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
     return (iv, decryptData)
 }
 
+class ShadowsocksPacketHandler {
+    private var iv: Option<Array<Byte>> = None
+    public ShadowsocksPacketHandler(private let cryptor: Cryptor) {}
+
+    public func packWithIv(dstAddr: DstAddr, rawData: Array<Byte>): Array<Byte> {
+        if (dstAddr.atyp == ATYP_IPv4 || dstAddr.atyp == ATYP_IPv6) {
+            let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddr.atyp] + dstAddr.addr + dstAddr.port + rawData)
+            return [UInt8(iv.size)] + iv + encryptedData
+        }
+        if (dstAddr.atyp == ATYP_DOMAINNAME) {
+            let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddr.atyp] + [UInt8(dstAddr.addr.size)] + dstAddr.addr + dstAddr.port + rawData)
+            return [UInt8(iv.size)] + iv + encryptedData
+        }
+
+        log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddr.atyp}")
+        throw Exception("Should never happen")
+    }
+
+}
