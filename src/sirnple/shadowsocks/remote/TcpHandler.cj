@@ -66,7 +66,7 @@ class TcpHandler {
                                 log.debug("Receive ${readCount} bytes from local server")
                                 match (dstSock) {
                                     case Some(dstSock0) => 
-                                        let decrypted = cryptor.decryptWithGivenIv(iv, buf[0..readCount])
+                                        let decrypted = cryptor.decryptWithGivenIv(iv: iv, data: buf[0..readCount])
                                         dstSock0.write(decrypted)
                                         log.debug("Send ${decrypted.size} bytes to dst")
                                     case None => 

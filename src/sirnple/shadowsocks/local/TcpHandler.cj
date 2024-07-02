@@ -125,7 +125,7 @@ class TcpHandler {
                                     break
                                 }
                                 log.debug("Receive ${readCount} bytes from remote server")
-                                let decrypted = cryptor.decryptWithGivenIv(iv, buf[0..readCount])
+                                let decrypted = cryptor.decryptWithGivenIv(iv: iv, data: buf[0..readCount])
                                 clientSock.write(decrypted)
                                 log.debug("Send ${decrypted.size} bytes to client")
                             } catch (e: SocketException) {

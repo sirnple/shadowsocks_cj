@@ -142,10 +142,10 @@ public func buildFirstSsPacketWhichHasIv(dstAddtr: DstAddr, cryptor: Cryptor, ra
 
 public func buildFollowSsPacketWhichNoIv(dstAddtr: DstAddr, cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
-        return cryptor.encryptWithGivenIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData, iv)
+        return cryptor.encryptWithGivenIv(data: [dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData, iv: iv)
     }
     if (dstAddtr.atyp == ATYP_DOMAINNAME) {
-        return cryptor.encryptWithGivenIv([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData, iv)
+        return cryptor.encryptWithGivenIv(data: [dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData, iv: iv)
     }
 
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
@@ -153,22 +153,18 @@ public func buildFollowSsPacketWhichNoIv(dstAddtr: DstAddr, cryptor: Cryptor, iv
 }
 
 public func buildDownwardSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
-    [UInt8(iv.size)] + iv + cryptor.encryptWithGivenIv(rawData, iv)
+    cryptor.encryptWithGivenIv(data: rawData, iv: iv)
 }
 
 public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(iv: Array<Byte>, decryptedData: Array<Byte>) {
     assert(ssPacket.size > IV_LEN + 1)
     if (ssPacket.size <= IV_LEN + 1) {
-        log.debug("Unbuild SS packet failed, because invalid ssPacket, size must be greater than ${IV_LEN + 1}, but is ${ssPacket.size}")
+        log.debug("Unbuild SS packet failed, because invalid ssPacket, size must be greater than ${IV_LEN + 1}, but entire packet size is ${ssPacket.size}")
         return None
     }
-    let ivLen = ssPacket[0]
-    if (ssPacket.size < Int64(ivLen) + 1) {
-        log.debug("Unbuild SS packet failed, because invalid ssPacket, ivLen must be greater than ${Int64(ivLen) + 1}, but is ${ssPacket.size}")
-        return None
-    }
-    let iv = ssPacket[1..Int64(ivLen) + 1]
-    let decryptData = cryptor.decryptWithGivenIv(iv, ssPacket[Int64(ivLen) + 1..ssPacket.size])
+    let iv = ssPacket[0..IV_LEN]
+    log.debug("Unbuild SS packet, ssPacket: ${ssPacket}")
+    let decryptData = cryptor.decryptWithGivenIv(iv: iv, data: ssPacket[Int64(IV_LEN) .. ssPacket.size])
     return (iv, decryptData)
 }
 
