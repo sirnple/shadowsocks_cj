@@ -25,6 +25,14 @@ class PasswordCryptorTest {
         let cryptor2 = PasswordCryptor("password2", "aes-256-cfb")
         @Assert(randomData != cryptor2.decryptWithGivenIv(data: encryptedData, iv: iv))
     }
+
+    @TestCase
+    func test_encrypt_by_aesCfb128() {
+        let cryptor1 = PasswordCryptor("password", "aes-256-cfb")
+        let iv: Array<Byte> = [157, 92, 193, 3, 150, 59, 186, 102, 232, 205, 165, 108, 83, 220, 116, 168]
+        let encrypted = cryptor1.encryptWithGivenIv(data: [ 1, 10, 10, 10, 10, 31, 144, 71, 69, 84, 32], iv: iv)
+        @Assert(encrypted == [212, 237, 20, 94, 3, 153, 230, 255, 57, 217, 187])
+    }
 }
 
 @Test

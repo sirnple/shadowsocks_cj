@@ -81,7 +81,7 @@ public class PasswordCryptor <: Cryptor {
         aesSetEncryptKey(generateKey(), keyLenInBits, key)
         match (encryptMode) {
             case "cfb" =>
-                aesCfb8Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
+                aesCfb128Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
         return outside
@@ -92,10 +92,9 @@ public class PasswordCryptor <: Cryptor {
         var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
         let genKey = generateKey()
         aesSetEncryptKey(genKey, keyLenInBits, key)
-        log.debug("Decrypt: iv: ${iv}, key: ${genKey}, data: ${data}")
         match (encryptMode) {
             case "cfb" =>
-                aesCfb8Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)
+                aesCfb128Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
         return outside

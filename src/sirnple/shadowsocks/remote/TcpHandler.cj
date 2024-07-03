@@ -129,16 +129,18 @@ class TcpHandler {
     }
 
     private func tryUnBuildUpwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, decryptedData: Array<Byte>) {
+        log.debug("Before decrypted: ${ssPacket[16..]}")
         match (tryUnBuildSsPacket(cryptor, ssPacket)) {
             case None => return None
             case Some((iv, data)) =>
+                log.debug("After decrypted: ${data}")
                 let atyp = data[0]
                 if (atyp == ATYP_IPv4) {
-                    log.debug("Unbuild SS packet, dst address is ${SocketAddress(IPv4, data[1..5], UInt16(data[5])<<8 | UInt16(data[6]))}")
+                    log.debug("Unbuild SS packet, IPv4, dst address is ${SocketAddress(IPv4, data[1..5], UInt16(data[5])<<8 | UInt16(data[6]))}")
                     return (iv, atyp, data[1..5], data[5..7], data[7..data.size])
                 }
                 if (atyp == ATYP_IPv6) {
-                    log.debug("Unbuild SS packet, dst address is ${SocketAddress(IPv6, data[1..17], UInt16(data[17])<<8 | UInt16(data[18]))}")
+                    log.debug("Unbuild SS packet, IPv6, dst address is ${SocketAddress(IPv6, data[1..17], UInt16(data[17])<<8 | UInt16(data[18]))}")
                     return (iv, atyp, data[1..17], data[17..19], data[19..data.size])
                 }
                 if (atyp == ATYP_DOMAINNAME) {
