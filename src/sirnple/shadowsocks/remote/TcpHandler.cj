@@ -1,6 +1,6 @@
 package sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.core.{Cryptor, buildDownwardSsPacket, tryUnBuildSsPacket, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN, buildFollowSsPacketWhichNoIv, DstAddr}
+import sirnple.shadowsocks.core.{Cryptor, buildDownwardFirstSsPacket, tryUnBuildSsPacket, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN, buildDownwardFollowSsPacket, DstAddr, ArrayExt}
 import sirnple.shadowsocks.util.assert
 
 class TcpHandler {
@@ -76,16 +76,26 @@ class TcpHandler {
                                 }
                             }
                         }
+
                         let downwardRelay = spawn {
+                            var iv = Option<Array<Byte>>.None
                             while (true) {
                                 let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
                                 try {
                                     let readCount = dstSock.getOrThrow().read(buf)
                                     if (readCount != 0) {
                                         log.debug("Receive ${readCount} bytes from dst")
-                                        let packet = buildDownwardSsPacket(cryptor, iv: iv, rawData: buf[0..readCount])
+                                        log.debug("Before encrypt: ${buf[0..readCount]}")
+                                        let packet = if (iv == None) {
+                                            let (newIv, encrypted) = buildDownwardFirstSsPacket(cryptor, buf[0..readCount])
+                                            iv = Some(newIv)
+                                            newIv + encrypted
+                                        } else {
+                                            buildDownwardFollowSsPacket(cryptor, iv: iv.getOrThrow(), rawData: buf[0..readCount])
+                                        }
                                         assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                                         localSock.write(packet)
+                                        log.debug("After encrypt: ${packet}")
                                         log.debug("Send ${packet.size} bytes to local server")
                                     } else {
                                         break

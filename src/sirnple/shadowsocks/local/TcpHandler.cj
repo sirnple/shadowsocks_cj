@@ -95,7 +95,7 @@ class TcpHandler {
                     }
 
                     log.debug("Receive first packet ${readCount} bytes from client")
-                    let (iv, packet) = buildFirstSsPacketWhichHasIv(dstAddr.getOrThrow(), cryptor, buf[0..readCount])
+                    let (iv, packet) = buildUpwardFirstSsPacket(dstAddr.getOrThrow(), cryptor, buf[0..readCount])
                     assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                     remoteSock.getOrThrow().write(packet)
                     log.debug("Send ${packet.size} bytes to remote server")
@@ -106,7 +106,7 @@ class TcpHandler {
                             let readCount = clientSock.read(buf)
                             if (readCount != 0) {
                                 log.debug("Receive ${readCount} bytes from client")
-                                let packet = buildFollowSsPacketWhichNoIv(dstAddr.getOrThrow(), cryptor, iv: iv, rawData: buf[0..readCount])
+                                let packet = buildUpwardFollowSsPacket(dstAddr.getOrThrow(), cryptor, iv: iv, rawData: buf[0..readCount])
                                 assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
                                 remoteSock.getOrThrow().write(packet)
                                 log.debug("Send ${packet.size} bytes to remote server")

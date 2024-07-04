@@ -116,7 +116,7 @@ public let REP_TTL_EXPIRED = 0x06u8
 public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
-public let RELAY_BLOCK_SIZE = 65536
+public let RELAY_BLOCK_SIZE = 2048
 
 public func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return [ver, rep, rsv, atyp] + addr + port
@@ -126,7 +126,7 @@ public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port:
     return buildNegotiationResponse(SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, atyp, addr, port)
 }
 
-public func buildFirstSsPacketWhichHasIv(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
+public func buildUpwardFirstSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
         let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
         return (iv, [UInt8(iv.size)] + iv + encryptedData)
@@ -140,7 +140,7 @@ public func buildFirstSsPacketWhichHasIv(dstAddtr: DstAddr, cryptor: Cryptor, ra
     throw Exception("Should never happen")
 }
 
-public func buildFollowSsPacketWhichNoIv(dstAddtr: DstAddr, cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
+public func buildUpwardFollowSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
         return cryptor.encryptWithGivenIv(data: [dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData, iv: iv)
     }
@@ -152,7 +152,11 @@ public func buildFollowSsPacketWhichNoIv(dstAddtr: DstAddr, cryptor: Cryptor, iv
     throw Exception("Should never happen")
 }
 
-public func buildDownwardSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
+public func buildDownwardFirstSsPacket(cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
+    return cryptor.encryptWithNewIv(rawData)
+}
+
+public func buildDownwardFollowSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
     cryptor.encryptWithGivenIv(data: rawData, iv: iv)
 }
 
