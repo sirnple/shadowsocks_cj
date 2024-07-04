@@ -2,9 +2,8 @@
 
 ## Model relation
 
-```mermaid
-flowChart
+待实现
 
-```
+- [ ] socket复用
 
-1. socket复用
+- [ ] 支持https
