@@ -1,6 +1,6 @@
 package sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.core.{Cryptor, buildDownwardFirstSsPacket, tryUnBuildSsPacket, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN, buildDownwardFollowSsPacket, DstAddr, ArrayExt}
+import sirnple.shadowsocks.core.{packSsRemoteFirstSendPacket, packFollowSsPacket, tryUnpackSsRemoteFirstReceivedPacket, Cryptor, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN, DstAddr, ArrayExt, SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE}
 import sirnple.shadowsocks.util.assert
 
 class TcpHandler {
@@ -25,98 +25,110 @@ class TcpHandler {
                     status = Status.Connected
                 case Status.Connected =>
                     log.debug("Status Connected")
-                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
-                    let readCount = localSock.read(buf)
-                    if (readCount == 0) {
-                        status = Destory
-                        break
-                    }
-                    log.debug("Receive first packet ${readCount} bytes from local server")
-                    if (let Some((iv, atyp, dstAddr, dstPort, data)) <- tryUnBuildUpwardSsPacket(cryptor, buf[0..readCount])) {
-                        match {
-                            case atyp == ATYP_IPv4 =>
-                                dstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
-                            case atyp == ATYP_IPv6 =>
-                                dstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
-                            case atyp == ATYP_DOMAINNAME =>
-                                let resolvedAddr = SocketAddress.resolve(String.fromUtf8(dstAddr), UInt16(dstPort[0])<<8 | UInt16(dstPort[1]))
-                                match (resolvedAddr) {
-                                    case Some(a) =>
-                                        dstSock = TcpSocket(a)
-                                    case None =>
-                                        log.warn("Can't resolve domain name ${String.fromUtf8(dstAddr)}:${UInt16(dstPort[0])<<8 | UInt16(dstPort[1])}")
-                                        status = Status.Disconnected
+                    let upwardRelay = spawn {
+                        var receivedIv = None<Array<Byte>>
+                        while (true) {
+                            match ((receivedIv, dstSock)) {
+                                case (None, None) =>
+                                    // receive first packet
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let readCount = localSock.read(buf)
+                                    if (readCount == 0) {
                                         break
-                                }
-                            case _ =>
-                                log.warn("Can't parse packet")
-                                status = Disconnected
-                                break
-                        }
-                        this.dstSock.getOrThrow().connect()
-                        this.dstSock.getOrThrow().write(data)
+                                    }
 
-                        let upwardRelay = spawn {
-                            while (true) {
-                                let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
-                                let readCount = localSock.read(buf)
-                                if (readCount == 0) {
-                                    break
-                                }
-                                log.debug("Receive ${readCount} bytes from local server")
-                                match (dstSock) {
-                                    case Some(dstSock0) => 
-                                        let decrypted = cryptor.decryptWithGivenIv(iv: iv, data: buf[0..readCount])
-                                        dstSock0.write(decrypted)
-                                        log.debug("Send ${decrypted.size} bytes to dst")
-                                    case None => 
-                                        log.warn("Never should reach here")
-                                        status = Destory
-                                        break
-                                }
-                            }
-                        }
-
-                        let downwardRelay = spawn {
-                            var iv = Option<Array<Byte>>.None
-                            while (true) {
-                                let buf = Array<Byte>(RELAY_BLOCK_SIZE - IV_LEN - 1, item: 0)
-                                try {
-                                    let readCount = dstSock.getOrThrow().read(buf)
-                                    if (readCount != 0) {
-                                        log.debug("Receive ${readCount} bytes from dst")
-                                        log.debug("Before encrypt: ${buf[0..readCount]}")
-                                        let packet = if (iv == None) {
-                                            let (newIv, encrypted) = buildDownwardFirstSsPacket(cryptor, buf[0..readCount])
-                                            iv = Some(newIv)
-                                            newIv + encrypted
-                                        } else {
-                                            buildDownwardFollowSsPacket(cryptor, iv: iv.getOrThrow(), rawData: buf[0..readCount])
+                                    log.debug("Receive first packet from ss-local, ${readCount} bytes\nbefore decrypted: ${buf[0..readCount]}")
+                                    if (let Some((iv, atyp, dstAddr, dstPort, data)) <- tryUnpackSsRemoteFirstReceivedPacket(cryptor, buf[0..readCount])) {
+                                        receivedIv = Some(iv)
+                                        match {
+                                            case atyp == ATYP_IPv4 =>
+                                                dstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                            case atyp == ATYP_IPv6 =>
+                                                dstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                            case atyp == ATYP_DOMAINNAME =>
+                                                let resolvedAddr = SocketAddress.resolve(String.fromUtf8(dstAddr), UInt16(dstPort[0])<<8 | UInt16(dstPort[1]))
+                                                match (resolvedAddr) {
+                                                    case Some(a) =>
+                                                        dstSock = TcpSocket(a)
+                                                    case None =>
+                                                        log.warn("Can't resolve domain name ${String.fromUtf8(dstAddr)}:${UInt16(dstPort[0])<<8 | UInt16(dstPort[1])}")
+                                                        status = Status.Disconnected
+                                                        break
+                                                }
+                                            case _ =>
+                                                log.warn("Can't parse packet")
+                                                status = Disconnected
+                                                break
                                         }
-                                        assert(packet.size <= RELAY_BLOCK_SIZE, message: "Packet size is too large, max size is ${RELAY_BLOCK_SIZE}, but actual size is ${packet.size}")
-                                        localSock.write(packet)
-                                        log.debug("After encrypt: ${packet}")
-                                        log.debug("Send ${packet.size} bytes to local server")
+                                        this.dstSock.getOrThrow().connect()
+                                        this.dstSock.getOrThrow().write(data)
+                                        log.debug("Send first packet to dst server, ${data.size} bytes\nafter decrypted: ${data}")
                                     } else {
+                                        log.warn("Invalid first packet, size: ${readCount}, content: ${buf[0..readCount]}")
                                         break
                                     }
-                                } catch (e: SocketException) {
-                                    if (e.message.contains("Socket is not connected")) {
-                                        continue
-                                    } else {
-                                        log.warn("Read from remote server failed, ${e.message}")
+                                case (Some(iv), Some(dstSock)) =>
+                                    // receive follow packet
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let readCount = localSock.read(buf)
+                                    if (readCount == 0) {
                                         break
                                     }
-                                }
+                                    log.debug("Receive follow packet from ss-local, ${readCount} bytes\nbefore decrypted: ${buf[0..readCount]}")
+                                    let decrypted = cryptor.decryptWithGivenIv(iv: iv, data: buf[0..readCount])
+                                    dstSock.write(decrypted)
+                                    log.debug("Send follow packet to dst server, ${decrypted.size} bytes\nafter decrypted: ${decrypted}")
+                                case (_, _) =>
+                                    log.warn("Invalid status, iv and dstSock must be both Some")
+                                    break
                             }
                         }
-                        upwardRelay.get()
-                        downwardRelay.get()
-                        status = Status.Disconnected
-                    } else {
-                        log.warn("Can't parse packet")
-                        status = Disconnected
                     }
+                    let downwardRelay = spawn {
+                        var sendIv = Option<Array<Byte>>.None
+                        while (true) {
+                            match ((sendIv, dstSock)) {
+                                case (_, None) =>
+                                    // dstSock is not ready, need wait for dstSock init in upwardRelay
+                                    continue
+                                case (None, Some(dstSock)) =>
+                                    // send first packet
+                                    let buf = Array<Byte>(SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE, item: 0)
+                                    try {
+                                        let readCount = dstSock.read(buf)
+                                        if (readCount == 0) {
+                                            break
+                                        }
+                                        log.debug("Receive first packet from dst server, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
+                                        let (iv, encrypted) = packSsRemoteFirstSendPacket(cryptor, buf[0..readCount])
+                                        sendIv = Some(iv)
+                                        localSock.write(iv + encrypted)
+                                        log.debug("Send first packet to ss-local, ${iv.size + encrypted.size} bytes\nafter encrypted: ${iv + encrypted}")
+                                    } catch (e: SocketException) {
+                                        if (e.message.contains("Socket is not connected")) {
+                                            continue
+                                        } else {
+                                            log.warn("Read from remote server failed, ${e.message}")
+                                            break
+                                        }
+                                    }
+                                case (Some(iv), Some(dstSock)) =>
+                                    // send follow packet
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let readCount = dstSock.read(buf)
+                                    if (readCount == 0) {
+                                        break
+                                    }
+                                    log.debug("Receive follow packet from dst server, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
+                                    let packet = packFollowSsPacket(cryptor, iv: iv, rawData: buf[0..readCount])
+                                    localSock.write(packet)
+                                    log.debug("Send follow packet to ss-local, ${packet.size} bytes\nafter encrypted: ${packet}")
+                            }
+                        }
+                    }
+                    upwardRelay.get()
+                    downwardRelay.get()
+                    status = Status.Disconnected
                 case Status.Disconnected =>
                     log.debug("Status Disconnected")
                     match (dstSock) {
@@ -135,35 +147,6 @@ class TcpHandler {
                     break
             }
 
-        }
-    }
-
-    private func tryUnBuildUpwardSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, decryptedData: Array<Byte>) {
-        log.debug("Before decrypted: ${ssPacket[16..]}")
-        match (tryUnBuildSsPacket(cryptor, ssPacket)) {
-            case None => return None
-            case Some((iv, data)) =>
-                log.debug("After decrypted: ${data}")
-                let atyp = data[0]
-                if (atyp == ATYP_IPv4) {
-                    log.debug("Unbuild SS packet, IPv4, dst address is ${SocketAddress(IPv4, data[1..5], UInt16(data[5])<<8 | UInt16(data[6]))}")
-                    return (iv, atyp, data[1..5], data[5..7], data[7..data.size])
-                }
-                if (atyp == ATYP_IPv6) {
-                    log.debug("Unbuild SS packet, IPv6, dst address is ${SocketAddress(IPv6, data[1..17], UInt16(data[17])<<8 | UInt16(data[18]))}")
-                    return (iv, atyp, data[1..17], data[17..19], data[19..data.size])
-                }
-                if (atyp == ATYP_DOMAINNAME) {
-                    // data格式: atyp + domainNameLen + domainName + port + payload
-                    let domainNameLen = data[1]
-                    let domainName = data[2..Int64(domainNameLen) + 2]
-                    let port = data[Int64(domainNameLen) + 2..Int64(domainNameLen) + 4]
-                    let payload = data[Int64(domainNameLen) + 4..data.size]
-                    log.debug("Unbuild SS packet, dst address is ${String.fromUtf8(domainName)}:${UInt16(port[0])<<8 | UInt16(port[1])}")
-                    return (iv, atyp, domainName, port, payload)
-                }
-                log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
-                return None
         }
     }
 }

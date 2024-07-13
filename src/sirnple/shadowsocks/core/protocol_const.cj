@@ -4,20 +4,42 @@ from std import log.*
 from std import console.Console
 from std import socket.*
 
-public let ATYP_IPv4 = 0x01u8
-public let ATYP_DOMAINNAME = 0x03u8
-public let ATYP_IPv6 = 0x04u8
+public const ATYP_IPv4 = 0x01u8
+public const ATYP_DOMAINNAME = 0x03u8
+public const ATYP_IPv6 = 0x04u8
 
-public let SOCKS_VERSION_5 = 0x05u8
+public const SOCKS_VERSION_5 = 0x05u8
 
-public let METHOD_NOAUTH = 0x00u8
-public let METHOD_GSSAPI = 0x01u8
-public let METHOD_USERPASS = 0x02u8
-public let METHOD_NOACCEPTABLE = 0xffu8
+public const METHOD_NOAUTH = 0x00u8
+public const METHOD_GSSAPI = 0x01u8
+public const METHOD_USERPASS = 0x02u8
+public const METHOD_NOACCEPTABLE = 0xffu8
 
 public let SUPPORT_AUTH_METHODS = [METHOD_NOAUTH, METHOD_GSSAPI, METHOD_USERPASS]
+public const AUTH_REQUEST_MAX_LEN = 1 + 1 + 255
 
-public func checkIsAuthRequest(frame: Array<Byte>): ?(Byte, Byte, Array<Byte>) {
+/** 
+ * 校验Socks5的认证请求，并且返回响应
+ * Request:
+ * +----+----------+---------+
+ * |VER | NMETHODS | METHODS |
+ * +----+----------+---------+
+ * | 1B |    1B    |1 to 255B|
+ * +----+----------+---------+
+ * NMETHODS: 客户端支持的认证方式的个数
+ * METHODS: 客户端支持的认证方式数组
+ * Response:
+ * +----+--------+
+ * |VER | METHOD |
+ * +----+--------+
+ * | 1B |   1B   |
+ * +----+--------+
+ * METHOD: 服务端返回的认证方式
+ *
+ * @param frame: Socks5的认证请求
+ * @return (ver, method)
+ */
+public func tryProcessSocks5AuthRequest(frame: Array<Byte>): ?Array<Byte> {
     if (frame.size < 3) {
         return None
     }
@@ -32,25 +54,47 @@ public func checkIsAuthRequest(frame: Array<Byte>): ?(Byte, Byte, Array<Byte>) {
     if (frame.size < Int64(nmethods) + 2) {
         return None
     }
+
     let methods = frame[2..Int64(nmethods) + 2]
-    for (method in methods) {
-        if (!SUPPORT_AUTH_METHODS.contains(method)) {
-            return None
-        }
+    let intersection = SUPPORT_AUTH_METHODS.intersection(methods)
+    return if (intersection.isEmpty()) {
+        [ver, METHOD_NOACCEPTABLE]
+    } else {
+        [ver, intersection[0]]
     }
-    return (ver, nmethods, methods)
 }
 
 
 public let NO_AUTH_RESPONSE = [SOCKS_VERSION_5, METHOD_NOAUTH]
 
-public let CMD_CONNECT = 0x01u8
-public let CMD_BIND = 0x02u8
-public let CMD_UDP_ASSOCIATE = 0x03u8
+public const CMD_CONNECT = 0x01u8
+public const CMD_BIND = 0x02u8
+public const CMD_UDP_ASSOCIATE = 0x03u8
 
-public let RESERVED = 0x00u8
+public const RESERVED = 0x00u8
+public const ADDR_NEGOTIATE_MAX_LEN = 1 + 1 + 1 + 1 + 1 + 255 + 2
 let log = SimpleLogger(@sourcePackage(), LOG_CONFIG.logLevel, Console.stdOut)
-public func checkIsNegotiationRequest(frame: Array<Byte>): ?(Byte, Byte, Byte, Byte, Array<Byte>, Array<Byte>) {
+
+/** 
+ * 校验Socks5的地址协商请求，并且返回响应
+ * Request:
+ * +----+-----+-------+------+----------+----------+
+ * |VER | CMD |  RSV  | ATYP | DST.ADDR | DST.PORT |
+ * +----+-----+-------+------+----------+----------+
+ * | 1B |  1B |  1B   |  1B  | Variable |    2B    |
+ * +----+-----+-------+------+----------+----------+
+ * Response:
+ * +----+-----+-------+------+----------+----------+
+ * |VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT |
+ * +----+-----+-------+------+----------+----------+
+ * | 1B |  1B |  1B   |  1B  | Variable |    2B    |
+ * +----+-----+-------+------+----------+----------+
+ *
+ * @attention: 当atyp为DOMAINNAME时，DST.ADDR为1B的域名长度+域名
+ * @param frame: Socks5的地址协商请求
+ * @return (ver, rep, rsv, atyp, addr, port)
+ */
+public func tryProcessNegotiationRequest(frame: Array<Byte>): ?(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>) {
     if (frame.size < 4) {
         log.debug("Size of frame must be at least 4, but is ${frame.size}")
         return None
@@ -116,78 +160,143 @@ public let REP_TTL_EXPIRED = 0x06u8
 public let REP_COMMAND_NOT_SUPPORTED = 0x07u8
 public let REP_ADDRESS_TYPE_NOT_SUPPORTED = 0x08u8
 
-public let RELAY_BLOCK_SIZE = 2048
+public const RELAY_BLOCK_SIZE = 2048
 
-public func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
+func buildNegotiationResponse(ver: Byte, rep: Byte, rsv: Byte, atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return [ver, rep, rsv, atyp] + addr + port
 }
 
 public func buildSuccessNegotiationResponse(atyp: Byte, addr: Array<Byte>, port: Array<Byte>): Array<Byte> {
     return buildNegotiationResponse(SOCKS_VERSION_5, REP_SUCCEEDED, RESERVED, atyp, addr, port)
 }
-
-public func buildUpwardFirstSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
+public const ADDR_MAX_LEN = 1 + 1 + 255 + 2 // 地址最大长度是当atyp为DOMAINNAME时: 1B的atyp + 1B的addrLen + 255B的addr + 2B的port
+public const ADDR_MIN_LEN = 1 + 4 + 2 // 地址最小长度是当atyp为IPV4时: 1B的atyp + 4B的addr + 2B的port
+// ss-local发送的第一个报文能带的payload最大值，因为发送的第一个报文要带iv和地址，所以这里减掉的iv和地址
+public const SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE = RELAY_BLOCK_SIZE - IV_LEN - ADDR_MAX_LEN
+/**
+ * 构造ss-local to ss-remote的第一个SS报文
+ * 报文(packet)格式:
+ * +-------------+------------------------------+
+ * |      iv     |       encryptedData          |
+ * +-------------+------------------------------+
+ * |             | atyp | addr | port | payload |
+ * +-------------+------------------------------+
+ * |      16B    |            var B             |
+ * +-------------+------------------------------+
+ * ss-remote接收到第一个报文后，会存储iv和地址，后续的报文都会使用这个iv和地址
+ * 
+ * @attention 当atyp == DOMAINNAME时，addr为域名长度+域名
+ * @return (iv: Array<Byte>, packet: Array<Byte>) 
+ */
+public func packSsLocalSendFirstSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
         let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-        return (iv, [UInt8(iv.size)] + iv + encryptedData)
+        return (iv, iv + encryptedData)
     }
     if (dstAddtr.atyp == ATYP_DOMAINNAME) {
         let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData)
-        return (iv, [UInt8(iv.size)] + iv + encryptedData)
+        return (iv, iv + encryptedData)
     }
 
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
     throw Exception("Should never happen")
 }
+// ss-local收到的第一个报文的最小值，也就是只有iv，没有payload
+public const SS_LOCAL_FIRST_RECEIVED_PACKET_MIN_SIZE = IV_LEN
+// ss-remote收到的第一个报文的最小值，也就是只有iv和地址，没有payload
+public const SS_REMOTE_FIRST_RECEIVED_PACKET_MIN_SIZE = IV_LEN + ADDR_MIN_LEN
 
-public func buildUpwardFollowSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
-    if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
-        return cryptor.encryptWithGivenIv(data: [dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData, iv: iv)
+/**
+ * 解析ss-local to ss-remote的第一个SS报文
+ * 报文(packet)格式:
+ * +-------------+------------------------------+
+ * |      iv     |       encryptedData          |
+ * +-------------+------------------------------+
+ * |             | atyp | addr | port | payload |
+ * +-------------+------------------------------+
+ * |      16B    |            var B             |
+ * +-------------+------------------------------+
+ * ss-remote接收到第一个报文后，会存储iv和地址，后续的报文都会使用这个iv和地址
+ * 
+ * @attention 当atyp == DOMAINNAME时，addr为域名长度+域名
+ * @return ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, payload: Array<Byte>) 
+ */
+public func tryUnpackSsRemoteFirstReceivedPacket(cryptor: Cryptor, ssRemoteFirstReceivedPacket: Array<Byte>): ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, decryptedData: Array<Byte>) {
+    if (ssRemoteFirstReceivedPacket.size <= SS_REMOTE_FIRST_RECEIVED_PACKET_MIN_SIZE) {
+        return None
     }
-    if (dstAddtr.atyp == ATYP_DOMAINNAME) {
-        return cryptor.encryptWithGivenIv(data: [dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData, iv: iv)
+    let iv = ssRemoteFirstReceivedPacket[0..IV_LEN]
+    let decryptedData = cryptor.decryptWithGivenIv(data: ssRemoteFirstReceivedPacket[IV_LEN .. ssRemoteFirstReceivedPacket.size], iv: iv)
+    let atyp = decryptedData[0]
+    if (atyp == ATYP_IPv4) {
+        return (iv, atyp, decryptedData[1..5], decryptedData[5..7], decryptedData[7..decryptedData.size])
     }
-
-    log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
-    throw Exception("Should never happen")
+    if (atyp == ATYP_IPv6) {
+        return (iv, atyp, decryptedData[1..17], decryptedData[17..19], decryptedData[19..decryptedData.size])
+    }
+    if (atyp == ATYP_DOMAINNAME) {
+        // data格式: atyp + domainNameLen + domainName + port + payload
+        let domainNameLen = decryptedData[1]
+        let domainName = decryptedData[2..Int64(domainNameLen) + 2]
+        let port = decryptedData[Int64(domainNameLen) + 2..Int64(domainNameLen) + 4]
+        let payload = decryptedData[Int64(domainNameLen) + 4..decryptedData.size]
+        return (iv, atyp, domainName, port, payload)
+    }
+    log.warn("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
+    return None
 }
-
-public func buildDownwardFirstSsPacket(cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
+// ss-remote收到的第一个报文能带的payload的最大值，和ss-local发送的第一个报文的payload一样
+public const SS_REMOTE_FIRST_RECEIVED_PAYLOAD_MAX_SIZE = SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE 
+// ss-remote发送的第一个报文能带的payload最大值，因为发送的第一个报文要带iv，所以这里减掉iv
+public const SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE = RELAY_BLOCK_SIZE - IV_LEN
+/**
+ * 构造ss-remote to ss-local的第一个SS报文
+ * 报文(packet)格式:
+ * +-------------+------------------------------+
+ * |      iv     |       encryptedData          |
+ * +-------------+------------------------------+
+ * |             |           payload            |
+ * +-------------+------------------------------+
+ * |     16B     |            var B             |
+ * +-------------+------------------------------+
+ * ss-local接收到第一个报文后，会存储iv，后续的报文都会使用这个iv
+ * 
+ * @return (iv: Array<Byte>, packet: Array<Byte>) 
+ */
+public func packSsRemoteFirstSendPacket(cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
     return cryptor.encryptWithNewIv(rawData)
 }
 
-public func buildDownwardFollowSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
+/**
+ * 构造ss-remote/ss-local to ss-local/ss-remote的后续SS报文
+ * 报文(packet)格式:
+ * +------------------------------+
+ * |       encryptedData          |
+ * +------------------------------+
+ * |           payload            |
+ * +------------------------------+
+ * |            var B             |
+ * +------------------------------+
+ *
+ * @return (iv: Array<Byte>, packet: Array<Byte>) 
+ */
+public func packFollowSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
     cryptor.encryptWithGivenIv(data: rawData, iv: iv)
 }
 
-public func tryUnBuildSsPacket(cryptor: Cryptor, ssPacket: Array<Byte>): ?(iv: Array<Byte>, decryptedData: Array<Byte>) {
-    assert(ssPacket.size > IV_LEN + 1)
-    if (ssPacket.size <= IV_LEN + 1) {
-        log.debug("Unbuild SS packet failed, because invalid ssPacket, size must be greater than ${IV_LEN + 1}, but entire packet size is ${ssPacket.size}")
-        return None
-    }
-    let iv = ssPacket[0..IV_LEN]
-    log.debug("Unbuild SS packet, ssPacket: ${ssPacket}")
-    let decryptData = cryptor.decryptWithGivenIv(iv: iv, data: ssPacket[Int64(IV_LEN) .. ssPacket.size])
-    return (iv, decryptData)
+public func tryUnpackSsRemoteFollowReceivedPacket(cryptro: Cryptor, iv: Array<Byte>, ssRemoteFollowReceivedPacket: Array<Byte>): Array<Byte> {
+    return cryptro.decryptWithGivenIv(iv: iv, data: ssRemoteFollowReceivedPacket)
 }
 
-class ShadowsocksPacketHandler {
-    private var iv: Option<Array<Byte>> = None
-    public ShadowsocksPacketHandler(private let cryptor: Cryptor) {}
-
-    public func packWithIv(dstAddr: DstAddr, rawData: Array<Byte>): Array<Byte> {
-        if (dstAddr.atyp == ATYP_IPv4 || dstAddr.atyp == ATYP_IPv6) {
-            let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddr.atyp] + dstAddr.addr + dstAddr.port + rawData)
-            return [UInt8(iv.size)] + iv + encryptedData
-        }
-        if (dstAddr.atyp == ATYP_DOMAINNAME) {
-            let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddr.atyp] + [UInt8(dstAddr.addr.size)] + dstAddr.addr + dstAddr.port + rawData)
-            return [UInt8(iv.size)] + iv + encryptedData
-        }
-
-        log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddr.atyp}")
-        throw Exception("Should never happen")
+public func tryUnpackSsLocalFirstReceivedPacket(cryptro: Cryptor, ssLocalFirstReceivedPacket: Array<Byte>): ?(iv: Array<Byte>, payload: Array<Byte>) {
+    if (ssLocalFirstReceivedPacket.size < SS_LOCAL_FIRST_RECEIVED_PACKET_MIN_SIZE) {
+        return None
     }
+    let iv = ssLocalFirstReceivedPacket[0..IV_LEN]
+    let decryptedData = cryptro.decryptWithGivenIv(data: ssLocalFirstReceivedPacket[IV_LEN .. ssLocalFirstReceivedPacket.size], iv: iv)
+    return (iv, decryptedData)
+}
 
+public func tryUnpackSsLocalFollowReceivedPacket(cryptro: Cryptor, iv: Array<Byte>, ssLocalFollowReceivedPacket: Array<Byte>): Array<Byte> {
+    return cryptro.decryptWithGivenIv(iv: iv, data: ssLocalFollowReceivedPacket)
 }

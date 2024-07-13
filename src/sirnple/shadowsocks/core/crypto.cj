@@ -18,7 +18,7 @@ public interface Cryptor {
     func decryptWithGivenIv(data!: Array<Byte>, iv!: Array<Byte>): Array<Byte>
 }
 
-public let IV_LEN = Int64(AES_BLOCK_SIZE)
+public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
 public class PasswordCryptor <: Cryptor {
     private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
     private let algorithm: String
@@ -68,11 +68,6 @@ public class PasswordCryptor <: Cryptor {
                 myKey = key
                 return key
         }
-    }
-
-    private func randomSalt(): Array<Byte> {
-        return [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10] // 暂时使用固定盐值，省去local和remote的密钥协商
-        // return Random().nextUInt8s(Array<Byte>(16, item: 0))
     }
 
     private func aesEncrypt(data: Array<UInt8>, iv: Array<UInt8>): Array<UInt8> {
