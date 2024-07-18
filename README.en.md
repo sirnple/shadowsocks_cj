@@ -20,8 +20,8 @@ Software architecture description
 
 #### Todo list
 
-- [_] Optimize performance
-- [_] Add support for more encryption algorithms
+- [ ] Optimize performance
+- [ ] Add support for more encryption algorithms
 
 #### Benchmark
 
