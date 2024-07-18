@@ -11,11 +11,13 @@ from std import console.Console
 
 class TcpHandler {
     private static let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
-    private var remoteSock: Option<TcpSocket> = None
+    private var myRemoteSock: Option<TcpSocket> = None
     private var status: Status = Status.Init
-    private var dstAddr: Option<DstAddr> = None
+    private var myDstAddr: Option<DstAddr> = None
+    private let ssCryptor: ShadowsocksCryptor
 
-    public TcpHandler(let config: ShadowsocksConfig, let clientSock: TcpSocket, let cryptor: Cryptor) {
+    public TcpHandler(let config: ShadowsocksConfig, let clientSock: TcpSocket) {
+        ssCryptor = PasswordCryptor(config.password, config.method)
     }
 
     public func handle() {
@@ -50,7 +52,7 @@ class TcpHandler {
                     let readCount = clientSock.read(buf)
                     match (tryProcessNegotiationRequest(buf[0..readCount])) {
                         case Some((ver, cmd, rsv, atyp, addr, port)) =>
-                            dstAddr = Some(DstAddr(atyp, addr, port))
+                            myDstAddr = Some(DstAddr(atyp, addr, port))
                             status = Status.AddressNegotiationResponse
                         case None => 
                             log.warn("Invalid status, bad address negotiation request")
@@ -58,14 +60,14 @@ class TcpHandler {
                     }
                 case AddressNegotiationResponse =>
                     log.debug("Status AddressNegotiationResponse")
-                    match((dstAddr, remoteSock)) {
+                    match((myDstAddr, myRemoteSock)) {
                         case (None, _) =>
                             log.warn("Invalid status, address negotiation not completed")
                             status = Disconnected
                         case (Some(addr), _) =>
                             let newRemoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
                             newRemoteSock.connect()
-                            remoteSock = Some(newRemoteSock)
+                            myRemoteSock = Some(newRemoteSock)
                             let bindAddr = newRemoteSock.localAddress.address
                             let bindPort = newRemoteSock.localAddress.port
                             let bindAtyp = match (newRemoteSock.localAddress.kind) {
@@ -79,14 +81,10 @@ class TcpHandler {
                 case Connected =>
                     log.debug("Status Connected")
                     let upwardRelay = spawn {
-                        var sendIv = None<Array<Byte>>
+                        var isFirst = true
                         while (true) {
-                            match ((sendIv, remoteSock)) {
-                                case (_, None) =>
-                                    log.debug("Invalid status, ss-remote is not ready")
-                                    break
-                                case (None, Some(sock)) =>
-                                    // send first packet
+                            match ((myDstAddr, myRemoteSock, isFirst)) {
+                                case (Some(dstAddr), Some(remoteSock), true) =>
                                     let buf = Array<Byte>(SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE, item: 0)
                                     let readCount = clientSock.read(buf)
                                     if (readCount == 0) {
@@ -94,60 +92,55 @@ class TcpHandler {
                                         break
                                     }
                                     log.debug("Receive first packet from client, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
-                                    let (iv, packet) = packSsLocalSendFirstSsPacket(dstAddr.getOrThrow(), cryptor, buf[0..readCount])
-                                    sock.write(packet)
+                                    let packet = ssCryptor.encryptFirst(packSsLocalSendFirstSsPacket(dstAddr, buf[0..readCount]))
+                                    remoteSock.write(packet)
                                     log.debug("Send first packet to ss-remote, ${packet.size} bytes\nafter encrypted: ${packet[0..packet.size]}")
-                                    sendIv = Some(iv)
-                                case (Some(iv), Some(sock)) =>
-                                    // send follow packet
+                                    isFirst = false
+                                case (Some(dstAddr), Some(remoteSock), false) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
                                     let readCount = clientSock.read(buf)
                                     if (readCount != 0) {
                                         log.debug("Receive follow packet from client, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
-                                        let packet = packFollowSsPacket(cryptor, iv: iv, rawData: buf[0..readCount])
-                                        sock.write(packet)
+                                        let packet = ssCryptor.encryptFollow(buf[0..readCount])
+                                        remoteSock.write(packet)
                                         log.debug("Send follow packet to ss-remote, ${packet.size} bytes\nafter encrypted: ${packet[0..packet.size]}")
                                     } else {
+                                        log.debug("Client socket is closed and nothing is relayed")
                                         break
                                     }
+                                case (_, _, _) =>
+                                    log.warn("Invalid status, remoteSock should create in AddressNegotiationResponse status")
+                                    break
                             }
                         }
                     }
 
                     let downwardRelay = spawn {
-                        var receivedIv = None<Array<Byte>>
+                        var isFirst = true
                         while (true) {
-                            match ((receivedIv, remoteSock)) {
-                                case (_, None) =>
-                                    log.debug("Invalid status, ss-remote is not ready")
-                                    break
-                                case (None, Some(sock)) =>
+                            match ((isFirst, myRemoteSock)) {
+                                case (true, Some(remoteSock)) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
-                                    let readCount = sock.read(buf)
+                                    let readCount = remoteSock.read(buf)
                                     if (readCount == 0) {
                                         log.debug("ss-remote is closed")
                                         break
                                     }
                                     log.debug("Receive first packet from ss-remote, ${readCount} bytes\nbefore decrypted: ${buf[0..readCount]}")
-                                    match (tryUnpackSsLocalFirstReceivedPacket(cryptor, buf[0..readCount])) {
-                                        case Some((iv, payload)) =>
-                                            receivedIv = Some(iv)
-                                            clientSock.write(payload)
-                                            log.debug("Send first packet to client, ${payload.size} bytes\nafter decrypted: ${payload[0..payload.size]}")
-                                        case None =>
-                                            log.warn("Invalid first packet from ss-remote")
-                                            break
-                                    }
-                                case (Some(iv), Some(sock)) =>
+                                    let payload = ssCryptor.decryptFirst(buf[0..readCount])
+                                    clientSock.write(payload)
+                                    log.debug("Send first packet to client, ${payload.size} bytes\nafter decrypted: ${payload[0..payload.size]}")
+                                    isFirst = false
+                                case (false, Some(remoteSock)) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
                                     try {
-                                        let readCount = sock.read(buf)
+                                        let readCount = remoteSock.read(buf)
                                         if (readCount == 0) {
                                             log.debug("ss-remote is closed")
                                             break
                                         }
                                         log.debug("Receive follow packet from ss-remote, ${readCount} bytes\nbefore decrypted: ${buf[0..readCount]}")
-                                        let payload = tryUnpackSsLocalFollowReceivedPacket(cryptor, iv, buf[0..readCount])
+                                        let payload = ssCryptor.decryptFollow(buf[0..readCount])
                                         clientSock.write(payload)
                                         log.debug("Send follow packet to client, ${payload.size} bytes\nafter decrypted: ${payload[0..payload.size]}")
                                     } catch (e: SocketException) {
@@ -157,6 +150,9 @@ class TcpHandler {
                                             log.warn("Read from ss-remote failed, ${e.message}")
                                         }
                                     }
+                                case (_, _) =>
+                                    log.warn("Invalid status, remoteSock should create in Connected status")
+                                    break
                             }
                         }
                     }
@@ -165,7 +161,7 @@ class TcpHandler {
                     status = Disconnected
                 case Disconnected =>
                     log.debug("Status Disconnected")
-                    match (remoteSock) {
+                    match (myRemoteSock) {
                         case Some(s) => 
                             if (!s.isClosed()) {
                                 s.close()

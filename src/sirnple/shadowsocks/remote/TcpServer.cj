@@ -20,7 +20,7 @@ public class TcpServer {
             while (true) {
                 let client = serverSocket.accept()
                 log.debug("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
-                TcpHandler(config, client, PasswordCryptor(config.password, config.method)).handle()
+                TcpHandler(config, client).handle()
             }
         }
     }

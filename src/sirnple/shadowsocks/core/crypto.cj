@@ -6,25 +6,37 @@ from crypto4cj import pbkdf2cj.*
 from crypto4cj import md5cj.*
 from crypto4cj import aescj.*
 from crypto4cj import utils.*
-from std import collection.ArrayList
+from std import collection.{ArrayList, HashMap}
 from std import convert.Parsable
 from std import random.Random
 from std import reflect.TypeInfo
 from std import math.min
 
-public interface Cryptor {
-    func encryptWithNewIv(data: Array<Byte>): (iv: Array<Byte>, encryptedData: Array<Byte>)
-    func encryptWithGivenIv(data!: Array<Byte>, iv!: Array<Byte>): Array<Byte>
-    func decryptWithGivenIv(data!: Array<Byte>, iv!: Array<Byte>): Array<Byte>
+
+/**
+ * 遵循Shadowsocks协议的加密器
+ * 一个转发的handler（如TcpHandler）转发的所有数据都应该使用同一个加密器
+ *
+ * @author sirnple
+ */
+public interface ShadowsocksCryptor {
+    func encryptFirst(data: Array<Byte>): Array<Byte>
+    func encryptFollow(data: Array<Byte>): Array<Byte>
+    func decryptFirst(data: Array<Byte>): Array<Byte>
+    func decryptFollow(data: Array<Byte>): Array<Byte>
 }
 
 public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
-public class PasswordCryptor <: Cryptor {
+public class PasswordCryptor <: ShadowsocksCryptor {
     private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
     private let algorithm: String
     private let keyLenInBits: Int32
     private let encryptMode: String
-    private var myKey: Option<Array<Byte>> = None
+    private let myKey: Array<Byte>
+    private let myEncryptEvp = EVP()
+    private let myDecryptEvp = EVP()
+    private var myEncryptIv: ?Array<Byte> = None
+    private var myDecryptIv: ?Array<Byte> = None
 
     public PasswordCryptor(private let password: String, private let method: String) {
         algorithm = method.split("-")[0]
@@ -34,65 +46,78 @@ public class PasswordCryptor <: Cryptor {
         encryptMode = method.split("-")[2]
         // 目前只支持cfb，因为cfb可以不用分组，实现比较简单
         assert(encryptMode.toAsciiLower() == "cfb", message: "Only support encryptMode: cbc")
+        myKey = deriveMd5Key(keyLenInBits, password)
     }
 
-    public func encryptWithNewIv(data: Array<Byte>): (iv: Array<Byte>, encryptedData: Array<Byte>) {
-        let iv = genIv(UInt8(IV_LEN))
-        return (iv, encryptWithGivenIv(data: data, iv: iv))
-    }
-
-    public func encryptWithGivenIv(data!: Array<Byte>, iv!: Array<Byte>): Array<Byte> {
-        return match (algorithm) {
-            case "aes" => return aesEncrypt(data, iv)
-            case _ => throw Exception("Not support algorithm: ${algorithm}, only support aes")
+    public func encryptFirst(data: Array<Byte>): Array<Byte> {
+        match (myEncryptIv) {
+            case None =>
+                let tmpIv = genIv(UInt8(IV_LEN))
+                myEncryptIv = Some(tmpIv)
+                initEncrypt(tmpIv)
+                let cipher = myEncryptEvp.encryptUpdate(data)
+                log.debug("First encrypt\niv: ${tmpIv}\nplainData: ${data}\ncipherData: ${cipher}")
+                tmpIv + cipher
+            case Some(_) =>
+                throw Exception("Already encrypt first")
         }
     }
 
-    public func decryptWithGivenIv(data!: Array<Byte>, iv!: Array<Byte>): Array<Byte> {
-        return match (algorithm) {
-            case "aes" => return aesDecrypt(iv, data)
-            case _ => throw Exception("Not support algorithm: ${algorithm}, only support aes")
+    public func encryptFollow(data: Array<Byte>): Array<Byte> {
+        match (myEncryptIv) {
+            case None =>
+                throw Exception("Please call encryptFirst first")
+            case Some(encryptIv) =>
+                myEncryptEvp.encryptUpdate(data)
         }
+    }
+
+    public func decryptFirst(data: Array<Byte>): Array<Byte> {
+        match (tryUnpackFirstEncryptedPacket(data)) {
+            case Some((iv, encryptedPayload)) =>
+                myDecryptIv = Some(iv)
+                initDecrypt(iv)
+                let decrypted = myDecryptEvp.decryptUpdate(encryptedPayload)
+                log.debug("First decrypt\niv: ${iv}\nplainData: ${decrypted}\ncipherData: ${encryptedPayload}")
+                decrypted
+            case None =>
+                throw Exception("Not a valid first packet")
+        }
+    }
+
+    public func decryptFollow(data: Array<Byte>): Array<Byte> {
+        match (myDecryptIv) {
+            case None =>
+                throw Exception("Please call decryptFirst first")
+            case Some(decryptIv) =>
+                myDecryptEvp.decryptUpdate(data)
+        }
+    }
+
+    ~init() {
+        myEncryptEvp.free()
     }
 
     private func genIv(ivLen: UInt8): Array<Byte> {
         Random().nextUInt8s(Array<Byte>(Int64(ivLen), item: 0))
     }
 
-    private func generateKey(): Array<Byte> {
-        return match (myKey) {
-            case Some(key) => key
-            case None =>
-                // let key = pbkdf2HmacSha1(password.toArray(), randomSalt(), 1000, keyLen)
-                let key = deriveMd5Key(keyLenInBits, password)
-                myKey = key
-                return key
+    private func initEncrypt(iv: Array<Byte>) {
+        match ((algorithm, encryptMode, keyLenInBits)) {
+            case ("aes", "cfb", 256) => 
+                myEncryptEvp.encryptInit(AES.aes256Cfb128, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
     }
 
-    private func aesEncrypt(data: Array<UInt8>, iv: Array<UInt8>): Array<UInt8> {
-        var key = AESKEY()
-        var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
-        aesSetEncryptKey(generateKey(), keyLenInBits, key)
-        match (encryptMode) {
-            case "cfb" =>
-                aesCfb128Encrypt(data, outside, key, iv.clone(), AES_ENCRYPT)
+    private func initDecrypt(iv: Array<Byte>) {
+        match ((algorithm, encryptMode, keyLenInBits)) {
+            case ("aes", "cfb", 256) =>
+                myDecryptEvp.decryptInit(AES.aes256Cfb128, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
             case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
         }
-        return outside
-    }
-
-    private func aesDecrypt(iv: Array<UInt8>, data: Array<UInt8>): Array<UInt8> {
-        var key = AESKEY()
-        var outside: Array<UInt8> = Array<UInt8>(data.size, item: 0)
-        let genKey = generateKey()
-        aesSetEncryptKey(genKey, keyLenInBits, key)
-        match (encryptMode) {
-            case "cfb" =>
-                aesCfb128Encrypt(data, outside, key, iv.clone(), AES_DECRYPT)
-            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
-        }
-        return outside
     }
 }
 

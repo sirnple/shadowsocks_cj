@@ -174,28 +174,23 @@ public const ADDR_MIN_LEN = 1 + 4 + 2 // 地址最小长度是当atyp为IPV4时:
 // ss-local发送的第一个报文能带的payload最大值，因为发送的第一个报文要带iv和地址，所以这里减掉的iv和地址
 public const SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE = RELAY_BLOCK_SIZE - IV_LEN - ADDR_MAX_LEN
 /**
- * 构造ss-local to ss-remote的第一个SS报文
- * 报文(packet)格式:
- * +-------------+------------------------------+
- * |      iv     |       encryptedData          |
- * +-------------+------------------------------+
- * |             | atyp | addr | port | payload |
- * +-------------+------------------------------+
- * |      16B    |            var B             |
- * +-------------+------------------------------+
- * ss-remote接收到第一个报文后，会存储iv和地址，后续的报文都会使用这个iv和地址
+ * 构造ss-local to ss-remote的第一个SS包
+ * (packet)格式:
+ * +------------------------------+
+ * | atyp | addr | port | payload |
+ * +------------------------------+
+ * |  1B  | varB |  2B  |   varB  |
+ * +------------------------------+
  * 
  * @attention 当atyp == DOMAINNAME时，addr为域名长度+域名
- * @return (iv: Array<Byte>, packet: Array<Byte>) 
+ * @return ss-local to ss-remote的第一个包
  */
-public func packSsLocalSendFirstSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
+public func packSsLocalSendFirstSsPacket(dstAddtr: DstAddr, payload: Array<Byte>): Array<Byte> {
     if (dstAddtr.atyp == ATYP_IPv4 || dstAddtr.atyp == ATYP_IPv6) {
-        let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + rawData)
-        return (iv, iv + encryptedData)
+        return [dstAddtr.atyp] + dstAddtr.addr + dstAddtr.port + payload
     }
     if (dstAddtr.atyp == ATYP_DOMAINNAME) {
-        let (iv, encryptedData) = cryptor.encryptWithNewIv([dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + rawData)
-        return (iv, iv + encryptedData)
+        return [dstAddtr.atyp] + [UInt8(dstAddtr.addr.size)] + dstAddtr.addr + dstAddtr.port + payload
     }
 
     log.debug("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${dstAddtr.atyp}")
@@ -205,42 +200,39 @@ public func packSsLocalSendFirstSsPacket(dstAddtr: DstAddr, cryptor: Cryptor, ra
 public const SS_LOCAL_FIRST_RECEIVED_PACKET_MIN_SIZE = IV_LEN
 // ss-remote收到的第一个报文的最小值，也就是只有iv和地址，没有payload
 public const SS_REMOTE_FIRST_RECEIVED_PACKET_MIN_SIZE = IV_LEN + ADDR_MIN_LEN
+public const SS_FIRST_RECEIVED_PACKET_MIN_SIZE = SS_LOCAL_FIRST_RECEIVED_PACKET_MIN_SIZE
 
 /**
  * 解析ss-local to ss-remote的第一个SS报文
  * 报文(packet)格式:
- * +-------------+------------------------------+
- * |      iv     |       encryptedData          |
- * +-------------+------------------------------+
- * |             | atyp | addr | port | payload |
- * +-------------+------------------------------+
- * |      16B    |            var B             |
- * +-------------+------------------------------+
+ * +------------------------------+
+ * | atyp | addr | port | payload |
+ * +------------------------------+
+ * |            var B             |
+ * +------------------------------+
  * ss-remote接收到第一个报文后，会存储iv和地址，后续的报文都会使用这个iv和地址
  * 
  * @attention 当atyp == DOMAINNAME时，addr为域名长度+域名
  * @return ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, payload: Array<Byte>) 
  */
-public func tryUnpackSsRemoteFirstReceivedPacket(cryptor: Cryptor, ssRemoteFirstReceivedPacket: Array<Byte>): ?(iv: Array<Byte>, atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, decryptedData: Array<Byte>) {
-    if (ssRemoteFirstReceivedPacket.size <= SS_REMOTE_FIRST_RECEIVED_PACKET_MIN_SIZE) {
+public func tryUnpackSsRemoteFirstReceivedPacket(ssRemoteFirstReceivedDecryptedData: Array<Byte>): ?(atyp: Byte, dstAddr: Array<Byte>, dstPort: Array<Byte>, payload: Array<Byte>) {
+    if (ssRemoteFirstReceivedDecryptedData.size <= ADDR_MIN_LEN) {
         return None
     }
-    let iv = ssRemoteFirstReceivedPacket[0..IV_LEN]
-    let decryptedData = cryptor.decryptWithGivenIv(data: ssRemoteFirstReceivedPacket[IV_LEN .. ssRemoteFirstReceivedPacket.size], iv: iv)
-    let atyp = decryptedData[0]
+    let atyp = ssRemoteFirstReceivedDecryptedData[0]
     if (atyp == ATYP_IPv4) {
-        return (iv, atyp, decryptedData[1..5], decryptedData[5..7], decryptedData[7..decryptedData.size])
+        return (atyp, ssRemoteFirstReceivedDecryptedData[1..5], ssRemoteFirstReceivedDecryptedData[5..7], ssRemoteFirstReceivedDecryptedData[7..ssRemoteFirstReceivedDecryptedData.size])
     }
     if (atyp == ATYP_IPv6) {
-        return (iv, atyp, decryptedData[1..17], decryptedData[17..19], decryptedData[19..decryptedData.size])
+        return (atyp, ssRemoteFirstReceivedDecryptedData[1..17], ssRemoteFirstReceivedDecryptedData[17..19], ssRemoteFirstReceivedDecryptedData[19..ssRemoteFirstReceivedDecryptedData.size])
     }
     if (atyp == ATYP_DOMAINNAME) {
         // data格式: atyp + domainNameLen + domainName + port + payload
-        let domainNameLen = decryptedData[1]
-        let domainName = decryptedData[2..Int64(domainNameLen) + 2]
-        let port = decryptedData[Int64(domainNameLen) + 2..Int64(domainNameLen) + 4]
-        let payload = decryptedData[Int64(domainNameLen) + 4..decryptedData.size]
-        return (iv, atyp, domainName, port, payload)
+        let domainNameLen = ssRemoteFirstReceivedDecryptedData[1]
+        let domainName = ssRemoteFirstReceivedDecryptedData[2..Int64(domainNameLen) + 2]
+        let port = ssRemoteFirstReceivedDecryptedData[Int64(domainNameLen) + 2..Int64(domainNameLen) + 4]
+        let payload = ssRemoteFirstReceivedDecryptedData[Int64(domainNameLen) + 4..ssRemoteFirstReceivedDecryptedData.size]
+        return (atyp, domainName, port, payload)
     }
     log.warn("ATYP must be ${ATYP_IPv4}, ${ATYP_DOMAINNAME}, or ${ATYP_IPv6}, but is ${atyp}")
     return None
@@ -249,54 +241,23 @@ public func tryUnpackSsRemoteFirstReceivedPacket(cryptor: Cryptor, ssRemoteFirst
 public const SS_REMOTE_FIRST_RECEIVED_PAYLOAD_MAX_SIZE = SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE 
 // ss-remote发送的第一个报文能带的payload最大值，因为发送的第一个报文要带iv，所以这里减掉iv
 public const SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE = RELAY_BLOCK_SIZE - IV_LEN
-/**
- * 构造ss-remote to ss-local的第一个SS报文
- * 报文(packet)格式:
- * +-------------+------------------------------+
- * |      iv     |       encryptedData          |
- * +-------------+------------------------------+
- * |             |           payload            |
- * +-------------+------------------------------+
- * |     16B     |            var B             |
- * +-------------+------------------------------+
- * ss-local接收到第一个报文后，会存储iv，后续的报文都会使用这个iv
- * 
- * @return (iv: Array<Byte>, packet: Array<Byte>) 
- */
-public func packSsRemoteFirstSendPacket(cryptor: Cryptor, rawData: Array<Byte>): (iv: Array<Byte>, packet: Array<Byte>) {
-    return cryptor.encryptWithNewIv(rawData)
-}
 
 /**
- * 构造ss-remote/ss-local to ss-local/ss-remote的后续SS报文
- * 报文(packet)格式:
- * +------------------------------+
- * |       encryptedData          |
- * +------------------------------+
- * |           payload            |
- * +------------------------------+
- * |            var B             |
- * +------------------------------+
+ * 解析第一个加密包
+ * (packet)格式：
+ * +------------------------+
+ * | iv  | encryptedPayload |
+ * +------------------------+
+ * | 16B |      varB        |
+ * +------------------------+
  *
- * @return (iv: Array<Byte>, packet: Array<Byte>) 
+ * @return ?(iv: Array<Byte>, encryptedPayload: Array<Byte>)
  */
-public func packFollowSsPacket(cryptor: Cryptor, iv!: Array<Byte>, rawData!: Array<Byte>): Array<Byte> {
-    cryptor.encryptWithGivenIv(data: rawData, iv: iv)
-}
-
-public func tryUnpackSsRemoteFollowReceivedPacket(cryptro: Cryptor, iv: Array<Byte>, ssRemoteFollowReceivedPacket: Array<Byte>): Array<Byte> {
-    return cryptro.decryptWithGivenIv(iv: iv, data: ssRemoteFollowReceivedPacket)
-}
-
-public func tryUnpackSsLocalFirstReceivedPacket(cryptro: Cryptor, ssLocalFirstReceivedPacket: Array<Byte>): ?(iv: Array<Byte>, payload: Array<Byte>) {
-    if (ssLocalFirstReceivedPacket.size < SS_LOCAL_FIRST_RECEIVED_PACKET_MIN_SIZE) {
+public func tryUnpackFirstEncryptedPacket(ssLocalFirstReceivedPacket: Array<Byte>): ?(iv: Array<Byte>, encryptedPayload: Array<Byte>) {
+    if (ssLocalFirstReceivedPacket.size < SS_FIRST_RECEIVED_PACKET_MIN_SIZE) {
         return None
     }
     let iv = ssLocalFirstReceivedPacket[0..IV_LEN]
-    let decryptedData = cryptro.decryptWithGivenIv(data: ssLocalFirstReceivedPacket[IV_LEN .. ssLocalFirstReceivedPacket.size], iv: iv)
-    return (iv, decryptedData)
-}
-
-public func tryUnpackSsLocalFollowReceivedPacket(cryptro: Cryptor, iv: Array<Byte>, ssLocalFollowReceivedPacket: Array<Byte>): Array<Byte> {
-    return cryptro.decryptWithGivenIv(iv: iv, data: ssLocalFollowReceivedPacket)
+    let encryptedPayload = ssLocalFirstReceivedPacket[IV_LEN..ssLocalFirstReceivedPacket.size]
+    (iv, encryptedPayload)
 }
