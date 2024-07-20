@@ -82,16 +82,16 @@ Requests per second:          557.871
 Time per request:             1.792528ms
 ```
 
-Using proxy
+Use this proxy
 ```shell
-# round 1
+# round1
 sirnple@sirnple:~/repos/shadowsocks_cj$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
 Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
 
-Number of bursts:             1                                   
+Number of bursts:             1                                  
 Number of request per burst   1000
 Concurrency level:            10
-Time taken for tests:         1.69933647s
+Time taken for tests:         1.852219408s
 
 Total initiated requests:     1000
    Completed requests:        1000
@@ -99,16 +99,16 @@ Total initiated requests:     1000
    Failed requests:           0
 
 Total transferred:            227000 bytes
-Requests per second:          588.465
-Time per request:             1.699336ms
-# round 2
+Requests per second:          539.893
+Time per request:             1.852219ms
+# round2
 sirnple@sirnple:~/repos/shadowsocks_cj$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
 Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
 
-Number of bursts:             1                                   
+Number of bursts:             1                                  
 Number of request per burst   1000
 Concurrency level:            10
-Time taken for tests:         1.734960491s
+Time taken for tests:         1.849680315s
 
 Total initiated requests:     1000
    Completed requests:        1000
@@ -116,16 +116,16 @@ Total initiated requests:     1000
    Failed requests:           0
 
 Total transferred:            227000 bytes
-Requests per second:          576.382
-Time per request:             1.73496ms
-# round 3
+Requests per second:          540.634
+Time per request:             1.84968ms
+# round3
 sirnple@sirnple:~/repos/shadowsocks_cj$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
 Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
 
-Number of bursts:             1                                   
+Number of bursts:             1                                  
 Number of request per burst   1000
 Concurrency level:            10
-Time taken for tests:         2.207380256s
+Time taken for tests:         1.709856817s
 
 Total initiated requests:     1000
    Completed requests:        1000
@@ -133,11 +133,75 @@ Total initiated requests:     1000
    Failed requests:           0
 
 Total transferred:            227000 bytes
-Requests per second:          453.026
-Time per request:             2.20738ms
+Requests per second:          584.845
+Time per request:             1.709856ms
 ```
 
-When no proxy is used, the average Requests per second is `(646.238 + 644.181 + 557.871)/3 = 616.0966666667`, and when a proxy is used, the average Requests per second is `(576.382 + 576.382 + 453.026)/3 = 535.2633333333`, which reduces 14% of Requests per second.
+Use exists python shadowsocks
+```shell
+sirnple@sirnple:~$ snap search shadowsocks
+Name                  Version               Publisher    Notes  Summary
+shadowsocks           2.9.1+20181219        anthonywong  -      A fast tunnel proxy that helps you bypass "Firewalls"
+```
+```shell
+# round1
+sirnple@sirnple:~$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
+Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
+
+Number of bursts:             1
+Number of request per burst   1000
+Concurrency level:            10
+Time taken for tests:         1.699697247s
+
+Total initiated requests:     1000
+   Completed requests:        1000
+      HTTP-200 completed:     1000
+   Failed requests:           0
+
+Total transferred:            227000 bytes
+Requests per second:          588.340
+Time per request:             1.699697ms
+# round2
+sirnple@sirnple:~$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
+Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
+
+Number of bursts:             1
+Number of request per burst   1000
+Concurrency level:            10
+Time taken for tests:         1.835343614s
+
+Total initiated requests:     1000
+   Completed requests:        1000
+      HTTP-200 completed:     1000
+   Failed requests:           0
+
+Total transferred:            227000 bytes
+Requests per second:          544.857
+Time per request:             1.835343ms
+# round3
+sirnple@sirnple:~$ ab-proxy -c 10 -n 1000 --proxy socks5://localhost:1081 https://www.baidu.com
+Benchmarking 'https://www.baidu.com' using proxy 'socks5://localhost:1081' with a total of 1000 GET requests:
+
+Number of bursts:             1
+Number of request per burst   1000
+Concurrency level:            10
+Time taken for tests:         1.768825783s
+
+Total initiated requests:     1000
+   Completed requests:        1000
+      HTTP-200 completed:     1000
+   Failed requests:           0
+
+Total transferred:            227000 bytes
+Requests per second:          565.347
+Time per request:             1.768825ms
+```
+
+|                               | No proxy  | With this proxy | With python shadowsocks |
+|-------------------------------|-----------|-----------------|-------------------------|
+| Requests per second (average) |   616.1   |     555.124     |         566.2           |
+| Performance                   |     1     |      0.90       |          0.92           |
+
 
 #### Contribution
 
