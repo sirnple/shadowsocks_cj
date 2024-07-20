@@ -21,6 +21,7 @@ shadowsocks的仓颉实现
 #### Todo list
 
 - [ ] 性能优化
+- [ ] 支持UDP
 - [x] 完备加密算法
 
 #### Benchmark

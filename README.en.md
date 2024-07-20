@@ -21,6 +21,7 @@ Software architecture description
 #### Todo list
 
 - [ ] Optimize performance
+- [ ] Support UDP
 - [x] Add support for more encryption algorithms
 
 #### Benchmark
