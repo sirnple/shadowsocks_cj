@@ -96,6 +96,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
 
     ~init() {
         myEncryptEvp.free()
+        myDecryptEvp.free()
     }
 
     private func genIv(ivLen: UInt8): Array<Byte> {
