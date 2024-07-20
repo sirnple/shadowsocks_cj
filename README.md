@@ -21,7 +21,7 @@ shadowsocks的仓颉实现
 #### Todo list
 
 - [ ] 性能优化
-- [ ] 完备加密算法
+- [x] 完备加密算法
 
 #### Benchmark
 
