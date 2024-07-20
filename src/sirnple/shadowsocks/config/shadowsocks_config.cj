@@ -4,6 +4,13 @@ from encoding import json.stream.*
 from std import fs.*
 from std import io.*
 
+
+public let SUPPORT_METHOD = ["aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb"]
+
+public func isSupportMethod(method: String): Bool {
+    return SUPPORT_METHOD.contains(method.toAsciiLower())
+}
+
 public struct ShadowsocksConfig <: JsonDeserializable<ShadowsocksConfig> & ToString {
     public ShadowsocksConfig(
         public let server: String,
@@ -32,7 +39,12 @@ public struct ShadowsocksConfig <: JsonDeserializable<ShadowsocksConfig> & ToStr
                             case "server" => server = r.readValue<String>()
                             case "server_port" => port = UInt16(r.readValue<Int>())
                             case "password" => password = r.readValue<String>()
-                            case "method" => method = r.readValue<String>()
+                            case "method" =>
+                                let uncheckedMethod = r.readValue<String>()
+                                if (!isSupportMethod(uncheckedMethod)) {
+                                    throw Exception("Read config error, method ${uncheckedMethod} not support, support: ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
+                                }
+                                method = uncheckedMethod
                             case "local" => local = r.readValue<String>()
                             case "local_port" => localPort = UInt16(r.readValue<Int>())
                             case _ => ()

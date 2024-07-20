@@ -1,7 +1,7 @@
 package sirnple.shadowsocks.core
 
 import sirnple.shadowsocks.util.assert
-import sirnple.shadowsocks.config.LOG_CONFIG
+import sirnple.shadowsocks.config.{LOG_CONFIG, SUPPORT_METHOD}
 from crypto4cj import pbkdf2cj.*
 from crypto4cj import md5cj.*
 from crypto4cj import aescj.*
@@ -27,6 +27,7 @@ public interface ShadowsocksCryptor {
 }
 
 public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
+
 public class PasswordCryptor <: ShadowsocksCryptor {
     private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
     private let algorithm: String
@@ -40,12 +41,8 @@ public class PasswordCryptor <: ShadowsocksCryptor {
 
     public PasswordCryptor(private let password: String, private let method: String) {
         algorithm = method.split("-")[0]
-        assert(algorithm.toAsciiLower() == "aes", message: "Only support algorithm: aes")
         keyLenInBits = Int32.parse(method.split("-")[1])
-        assert(keyLenInBits == 128 || keyLenInBits == 192 || keyLenInBits == 256, message: "Only support keyLen: 128/192/256")
         encryptMode = method.split("-")[2]
-        // 目前只支持cfb，因为cfb可以不用分组，实现比较简单
-        assert(encryptMode.toAsciiLower() == "cfb", message: "Only support encryptMode: cbc")
         myKey = deriveMd5Key(keyLenInBits, password)
     }
 
@@ -108,7 +105,22 @@ public class PasswordCryptor <: ShadowsocksCryptor {
             case ("aes", "cfb", 256) => 
                 myEncryptEvp.encryptInit(AES.aes256Cfb128, myKey, iv)
                 myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
+            case ("aes", "cfb", 192) =>
+                myEncryptEvp.encryptInit(AES.aes192Cfb128, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "cfb", 128) =>
+                myEncryptEvp.encryptInit(AES.aes128Cfb128, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 256) =>
+                myEncryptEvp.encryptInit(AES.aes256gcm, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 192) =>
+                myEncryptEvp.encryptInit(AES.aes192gcm, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 128) =>
+                myEncryptEvp.encryptInit(AES.aes128gcm, myKey, iv)
+                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
 
@@ -117,7 +129,22 @@ public class PasswordCryptor <: ShadowsocksCryptor {
             case ("aes", "cfb", 256) =>
                 myDecryptEvp.decryptInit(AES.aes256Cfb128, myKey, iv)
                 myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case _ => throw Exception("Not support encryptMode: ${encryptMode}, only support cfb")
+            case ("aes", "cfb", 192) =>
+                myDecryptEvp.decryptInit(AES.aes192Cfb128, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "cfb", 128) =>
+                myDecryptEvp.decryptInit(AES.aes128Cfb128, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 256) =>
+                myDecryptEvp.decryptInit(AES.aes256gcm, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 192) =>
+                myDecryptEvp.decryptInit(AES.aes192gcm, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case ("aes", "gcm", 128) =>
+                myDecryptEvp.decryptInit(AES.aes128gcm, myKey, iv)
+                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
 }

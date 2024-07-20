@@ -17,6 +17,8 @@ target
 cjcov_logs
 cov_output
 output
+*.gcda
+*.gcno
 
 # Gitee
 .gitee
