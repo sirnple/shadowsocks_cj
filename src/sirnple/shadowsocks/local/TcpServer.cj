@@ -1,6 +1,10 @@
-package sirnple.shadowsocks.local
+package shadowsocks_cj.sirnple.shadowsocks.local
 
-import sirnple.shadowsocks.config.LOG_CONFIG
+import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
+import std.log.SimpleLogger
+import std.reflect.TypeInfo
+import std.socket.{TcpServerSocket, SocketAddress}
+import std.console.Console
 
 public class TcpServer {
     private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)

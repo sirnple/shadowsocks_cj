@@ -1,21 +1,21 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from std import collection.{filter, collectArray, collectArrayList}
+import std.collection.{filter, collectArray, collectArrayList}
 
-extend Array<T> <: ArrayExt<T> where T <: Byte & Equatable<T> {
-    public operator func +(arr: Array<T>): Array<T> {
-        let a = Array<T>(this.size + arr.size, item: 0)
+extend Array<Byte> <: ArrayExt {
+    public operator func +(arr: Array<Byte>): Array<Byte> {
+        let a = Array<Byte>(this.size + arr.size, item: 0)
         this.copyTo(a, 0, 0, this.size)
         arr.copyTo(a, 0, this.size, arr.size)
         return a
     }
 
-    public func intersection(arr: Array<T>): Array<T> {
-        return this |> filter { x: T => arr.contains(x) } |> collectArray
+    public func intersection(arr: Array<Byte>): Array<Byte> {
+        return this |> filter { x: Byte => arr.contains(x) } |> collectArray
     }
 }
 
-public interface ArrayExt<T> {
-    operator func +(arr: Array<T>): Array<T>
-    func intersection(arr: Array<T>): Array<T>
+public interface ArrayExt {
+    operator func +(arr: Array<Byte>): Array<Byte>
+    func intersection(arr: Array<Byte>): Array<Byte>
 }

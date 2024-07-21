@@ -1,7 +1,7 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from std import unittest.testmacro.{Test, Expect}
-from serialization import serialization.*
+import std.unittest.*
+import std.unittest.testmacro.{Test, Expect}
 
 @Test
 func testByteArrayPlus() {

@@ -1,8 +1,9 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from std import log.*
-from std import console.Console
-from std import socket.*
+import std.log.SimpleLogger
+import std.console.Console
+import std.socket.{SocketAddress, SocketAddressKind}
+import shadowsocks_cj.sirnple.shadowsocks.config.LOG_CONFIG
 
 public const ATYP_IPv4 = 0x01u8
 public const ATYP_DOMAINNAME = 0x03u8

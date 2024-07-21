@@ -1,8 +1,8 @@
-package sirnple.shadowsocks.config
+package shadowsocks_cj.sirnple.shadowsocks.config
 
-from encoding import json.stream.*
-from std import fs.*
-from std import io.*
+import encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
+import std.fs.*
+import std.io.*
 
 
 public let SUPPORT_METHOD = ["aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb"]

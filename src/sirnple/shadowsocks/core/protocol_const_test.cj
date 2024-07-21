@@ -1,7 +1,7 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from std import unittest.*
-from std import unittest.testmacro.*
+import std.unittest.*
+import std.unittest.testmacro.*
 
 @Test[authMethod in [METHOD_NOAUTH, METHOD_GSSAPI, METHOD_USERPASS]]
 func test_support_auth(authMethod: UInt8) {

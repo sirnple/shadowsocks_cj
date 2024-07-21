@@ -1,7 +1,4 @@
-package sirnple.shadowsocks.remote
-
-import sirnple.shadowsocks.core.*
-from crypto4cj import symmetrycj.AES
+package shadowsocks_cj.sirnple.shadowsocks.remote
 
 main() {
     TcpServer().start()

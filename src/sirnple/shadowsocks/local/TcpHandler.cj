@@ -1,13 +1,13 @@
-package sirnple.shadowsocks.local
+package shadowsocks_cj.sirnple.shadowsocks.local
 
-import sirnple.shadowsocks.config.ShadowsocksConfig
-import sirnple.shadowsocks.core.*
-import sirnple.shadowsocks.util.assert
+import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
+import shadowsocks_cj.sirnple.shadowsocks.core.*
+import shadowsocks_cj.sirnple.shadowsocks.util.assert
 
-from std import socket.*
-from std import log.*
-from std import reflect.*
-from std import console.Console
+import std.socket.*
+import std.log.*
+import std.reflect.*
+import std.console.Console
 
 class TcpHandler {
     private static let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)

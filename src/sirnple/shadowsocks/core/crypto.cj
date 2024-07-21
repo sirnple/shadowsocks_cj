@@ -1,16 +1,18 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-import sirnple.shadowsocks.util.assert
-import sirnple.shadowsocks.config.{LOG_CONFIG, SUPPORT_METHOD}
-from crypto4cj import pbkdf2cj.*
-from crypto4cj import md5cj.*
-from crypto4cj import aescj.*
-from crypto4cj import utils.*
-from std import collection.{ArrayList, HashMap}
-from std import convert.Parsable
-from std import random.Random
-from std import reflect.TypeInfo
-from std import math.min
+import shadowsocks_cj.sirnple.shadowsocks.util.assert
+import shadowsocks_cj.sirnple.shadowsocks.config.{LOG_CONFIG, SUPPORT_METHOD}
+import crypto4cj.pbkdf2cj.*
+import crypto4cj.md5cj.*
+import crypto4cj.aescj.*
+import crypto4cj.utils.*
+import std.collection.{ArrayList, HashMap}
+import std.convert.Parsable
+import std.random.Random
+import std.reflect.TypeInfo
+import std.math.min
+import std.log.SimpleLogger
+import std.console.Console
 
 
 /**

@@ -1,9 +1,11 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from std import unittest.*
-from std import unittest.testmacro.*
-from std import collection.forEach
-from crypto4cj import symmetrycj.*
+import std.unittest.*
+import std.unittest.testmacro.*
+import std.collection.{forEach, ArrayList}
+import crypto4cj.symmetrycj.*
+import shadowsocks_cj.sirnple.shadowsocks.config.SUPPORT_METHOD
+import std.random.Random
 
 
 @Test

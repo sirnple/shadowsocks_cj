@@ -1,12 +1,12 @@
-package sirnple.shadowsocks.remote
+package shadowsocks_cj.sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
-import sirnple.shadowsocks.core.PasswordCryptor
+import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
+import shadowsocks_cj.sirnple.shadowsocks.core.PasswordCryptor
 
-from std import log.*
-from std import reflect.*
-from std import console.Console
-from std import socket.*
+import std.log.*
+import std.reflect.*
+import std.console.Console
+import std.socket.*
 
 public class TcpServer {
     private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)

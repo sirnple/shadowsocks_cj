@@ -1,6 +1,8 @@
-package sirnple.shadowsocks.config
+package shadowsocks_cj.sirnple.shadowsocks.config
 
-from std import log.LogLevel
+import encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
+import std.fs.{File, OpenOption}
+import std.log.LogLevel
 
 public let LOG_CONFIG = LogConfig.readConfig()
 public struct LogConfig <: JsonDeserializable<LogConfig> & ToString {

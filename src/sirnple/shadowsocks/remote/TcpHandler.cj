@@ -1,7 +1,24 @@
-package sirnple.shadowsocks.remote
+package shadowsocks_cj.sirnple.shadowsocks.remote
 
-import sirnple.shadowsocks.core.{tryUnpackSsRemoteFirstReceivedPacket, ShadowsocksCryptor, ATYP_IPv4, ATYP_IPv6, ATYP_DOMAINNAME, RELAY_BLOCK_SIZE, IV_LEN, DstAddr, ArrayExt, SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE}
-import sirnple.shadowsocks.util.assert
+import shadowsocks_cj.sirnple.shadowsocks.core.{
+    tryUnpackSsRemoteFirstReceivedPacket,
+    PasswordCryptor,
+    ShadowsocksCryptor,
+    ATYP_IPv4,
+    ATYP_IPv6,
+    ATYP_DOMAINNAME,
+    RELAY_BLOCK_SIZE,
+    IV_LEN,
+    DstAddr,
+    ArrayExt,
+    SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE
+}
+import shadowsocks_cj.sirnple.shadowsocks.util.assert
+import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
+import std.log.SimpleLogger
+import std.reflect.TypeInfo
+import std.console.Console
+import std.socket.{TcpSocket, SocketException, SocketAddress, SocketAddressKind}
 
 class TcpHandler {
     private let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)

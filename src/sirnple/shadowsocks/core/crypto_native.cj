@@ -1,4 +1,4 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
 foreign func malloc(size: UIntNative): CPointer<Unit>
 foreign func free(p: CPointer<Int32>): Unit

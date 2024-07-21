@@ -1,7 +1,7 @@
-from std import os.*
-from std import os.process.*
-from std import fs.*
-from std import collection.*
+import std.os.{getEnv, getArgs}
+import std.os.process.*
+import std.fs.*
+import std.collection.*
 
 let publishDir = Path("shadowsocks_cj")
 let publishBinDir = publishDir.join("bin")
@@ -22,7 +22,7 @@ let buildShadowsocksCjDir = Path("target/debug/shadowsocks_cj")
 let buildShadowsocksCjDir = Path("target/release/shadowsocks_cj")
 
 // 请根据自己的情况修改
-@When[os == "linux"]
+@When[os == "Linux"]
 let libcryptoPath = Path("/home/sirnple/.cjpm/git/crypto4cj/a84a4ee959b30d27bd6a0dc9171a89f1c6aef7f4/lib/libcrypto.so")
 
 func copyBinToPublishDir() {
@@ -46,17 +46,17 @@ func cleanPublishDir() {
     }
 }
 
-@When[os == "linux"]
+@When[os == "Linux"]
 func copyRuntimeToPublishDir() {
-    match (os.getEnv("CANGJIE_HOME")) {
+    match (getEnv("CANGJIE_HOME")) {
         case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/linux_x86_64_llvm"), publishRuntimeDir, true)
         case None => ()
     }
 }
 
-@When[os == "windows"]
+@When[os == "Windows"]
 func copyRuntimeToPublishDir() {
-    match (os.getEnv("CANGJIE_HOME")) {
+    match (getEnv("CANGJIE_HOME")) {
         case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), publishRuntimeDir, true)
         case None => ()
     }
@@ -94,7 +94,7 @@ func postBuild(): Int64 {
 }
 
 main() {
-    match (os.getArgs()[0]) {
+    match (getArgs()[0]) {
         case "post-build" => postBuild()
         case _ => 0
     }

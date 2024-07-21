@@ -1,6 +1,6 @@
-package sirnple.shadowsocks.core
+package shadowsocks_cj.sirnple.shadowsocks.core
 
-from crypto4cj import symmetrycj.*
+import crypto4cj.symmetrycj.*
 
 public let EVP_PADDING_NO: Int32 = 0
 public let EVP_PADDING_PKCS7: Int32 = 1
