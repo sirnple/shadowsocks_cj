@@ -1,4 +1,3 @@
 version = 0
 
 [requires]
-  crypto4cj = {branch = "develop", commitId = "1ac28ae271b5a81fb4cb3359c8cad4f9f14ebbe1", git = "https://gitee.com/HW-PLLab/crypto4cj.git"}

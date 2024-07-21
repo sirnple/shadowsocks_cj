@@ -2,10 +2,6 @@ package shadowsocks_cj.sirnple.shadowsocks.core
 
 import shadowsocks_cj.sirnple.shadowsocks.util.assert
 import shadowsocks_cj.sirnple.shadowsocks.config.{LOG_CONFIG, SUPPORT_METHOD}
-import crypto4cj.pbkdf2cj.*
-import crypto4cj.md5cj.*
-import crypto4cj.aescj.*
-import crypto4cj.utils.*
 import std.collection.{ArrayList, HashMap}
 import std.convert.Parsable
 import std.random.Random
@@ -13,6 +9,10 @@ import std.reflect.TypeInfo
 import std.math.min
 import std.log.SimpleLogger
 import std.console.Console
+import std.crypto.digest.digest
+import std.crypto.cipher.BlockCipher
+import crypto.digest.MD5
+import crypto.crypto.SM4
 
 
 /**
@@ -36,8 +36,8 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     private let keyLenInBits: Int32
     private let encryptMode: String
     private let myKey: Array<Byte>
-    private let myEncryptEvp = EVP()
-    private let myDecryptEvp = EVP()
+    private let myEncryptEvp: ?SM4 = None
+    private let myDecryptEvp: ?SM4 = None
     private var myEncryptIv: ?Array<Byte> = None
     private var myDecryptIv: ?Array<Byte> = None
 
@@ -49,12 +49,11 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     public func encryptFirst(data: Array<Byte>): Array<Byte> {
-        match (myEncryptIv) {
-            case None =>
+        match ((myDecryptEvp, myDecryptIv)) {
+            case (None, None) =>
                 let tmpIv = genIv(UInt8(IV_LEN))
-                myEncryptIv = Some(tmpIv)
-                initEncrypt(tmpIv)
-                let cipher = myEncryptEvp.encryptUpdate(data)
+                let sm4 = initEncrypt(tmpIv)
+                let cipher = sm4.encrypt(data)
                 log.debug("First encrypt\niv: ${tmpIv}\nplainData: ${data}\ncipherData: ${cipher}")
                 tmpIv + cipher
             case Some(_) =>
@@ -63,33 +62,32 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     public func encryptFollow(data: Array<Byte>): Array<Byte> {
-        match (myEncryptIv) {
-            case None =>
+        match ((myDecryptEvp, myEncryptIv)) {
+            case (Some(sm4), Some(encryptIv)) =>
+                sm4.encrypt(data)
+            case _ =>
                 throw Exception("Please call encryptFirst first")
-            case Some(encryptIv) =>
-                myEncryptEvp.encryptUpdate(data)
         }
     }
 
     public func decryptFirst(data: Array<Byte>): Array<Byte> {
         match (tryUnpackFirstEncryptedPacket(data)) {
             case Some((iv, encryptedPayload)) =>
-                myDecryptIv = Some(iv)
-                initDecrypt(iv)
-                let decrypted = myDecryptEvp.decryptUpdate(encryptedPayload)
+                let sm4 = initDecrypt(iv)
+                let decrypted = sm4.decrypt(encryptedPayload)
                 log.debug("First decrypt\niv: ${iv}\nplainData: ${decrypted}\ncipherData: ${encryptedPayload}")
-                decrypted
+                return decrypted
             case None =>
                 throw Exception("Not a valid first packet")
         }
     }
 
     public func decryptFollow(data: Array<Byte>): Array<Byte> {
-        match (myDecryptIv) {
-            case None =>
+        match ((myDecryptEvp, myDecryptIv)) {
+            case (Some(sm4), Some(decryptIv)) =>
+                return sm4.decrypt(data)
+            case _ =>
                 throw Exception("Please call decryptFirst first")
-            case Some(decryptIv) =>
-                myDecryptEvp.decryptUpdate(data)
         }
     }
 
@@ -102,50 +100,32 @@ public class PasswordCryptor <: ShadowsocksCryptor {
         Random().nextUInt8s(Array<Byte>(Int64(ivLen), item: 0))
     }
 
-    private func initEncrypt(iv: Array<Byte>) {
+    private func initEncrypt(iv: Array<Byte>): SM4 {
         match ((algorithm, encryptMode, keyLenInBits)) {
-            case ("aes", "cfb", 256) => 
-                myEncryptEvp.encryptInit(AES.aes256Cfb128, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "cfb", 192) =>
-                myEncryptEvp.encryptInit(AES.aes192Cfb128, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "cfb", 128) =>
-                myEncryptEvp.encryptInit(AES.aes128Cfb128, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 256) =>
-                myEncryptEvp.encryptInit(AES.aes256gcm, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 192) =>
-                myEncryptEvp.encryptInit(AES.aes192gcm, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 128) =>
-                myEncryptEvp.encryptInit(AES.aes128gcm, myKey, iv)
-                myEncryptEvp.setPadding(EVP_PADDING_NO)
+            case ("sm4", "cfb", 128) => 
+                let sm4 = SM4(OperationMode.CFB, myKey, iv)
+                myDecryptEvp = Some(sm4)
+                myDecryptIv = Some(iv)
+                return sm4
+            case ("sm4", "gcm", 128) =>
+                let sm4 = SM4(OperationMode.GCM, myKey, iv)
+                myDecryptEvp = Some(sm4)
+                myDecryptIv = Some(iv)
             case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
 
-    private func initDecrypt(iv: Array<Byte>) {
+    private func initDecrypt(iv: Array<Byte>): SM4 {
         match ((algorithm, encryptMode, keyLenInBits)) {
-            case ("aes", "cfb", 256) =>
-                myDecryptEvp.decryptInit(AES.aes256Cfb128, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "cfb", 192) =>
-                myDecryptEvp.decryptInit(AES.aes192Cfb128, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "cfb", 128) =>
-                myDecryptEvp.decryptInit(AES.aes128Cfb128, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 256) =>
-                myDecryptEvp.decryptInit(AES.aes256gcm, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 192) =>
-                myDecryptEvp.decryptInit(AES.aes192gcm, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
-            case ("aes", "gcm", 128) =>
-                myDecryptEvp.decryptInit(AES.aes128gcm, myKey, iv)
-                myDecryptEvp.setPadding(EVP_PADDING_NO)
+            case ("sm4", "cfb", 128) =>
+                let sm4 = SM4(OperationMode.CFB, myKey, iv)
+                myDecryptEvp = Some(sm4)
+                myDecryptIv = Some(iv)
+                return sm4
+            case ("sm4", "gcm", 128) =>
+                let sm4 = SM4(OperationMode.GCM, myKey, iv)
+                myDecryptEvp = Some(sm4)
+                myDecryptIv = Some(iv)
             case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
@@ -157,17 +137,19 @@ public class PasswordCryptor <: ShadowsocksCryptor {
 public func deriveMd5Key(keyLenInBits: Int32, password: String): Array<Byte> {
     let keyLenInBytes = Int64(keyLenInBits/8)
     let key = Array<Byte>(keyLenInBytes, item: 0)
+    let md5digest = MD5()
+    let MD5_DIGEST_LENGTH = md5digest.size
     let intermediate = Array<Byte>(password.size + MD5_DIGEST_LENGTH, item: 0)
     var i = 0
     let md5sum = Array<Byte>(MD5_DIGEST_LENGTH, item: 0)
     let passwordArray = password.toArray()
     while (i < keyLenInBytes) {
         if (i==0) {
-            md5(passwordArray, md5sum)
+            digest(md5digest, password).copyTo(md5sum, 0, 0, MD5_DIGEST_LENGTH)
         } else {
             md5sum.copyTo(intermediate, 0, 0, MD5_DIGEST_LENGTH)
             passwordArray.copyTo(intermediate, 0, MD5_DIGEST_LENGTH, password.size)
-            md5(intermediate, md5sum)
+            digest(md5digest, intermediate).copyTo(md5sum, 0, 0, MD5_DIGEST_LENGTH)
         }
         md5sum.copyTo(key, 0, i, min(MD5_DIGEST_LENGTH, keyLenInBytes - i))
         i += MD5_DIGEST_LENGTH

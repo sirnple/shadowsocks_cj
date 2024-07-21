@@ -5,7 +5,7 @@ import std.fs.*
 import std.io.*
 
 
-public let SUPPORT_METHOD = ["aes-128-gcm", "aes-192-gcm", "aes-256-gcm", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb"]
+public let SUPPORT_METHOD = ["sm4-128-gcm", "sm4-128-cfb"]
 
 public func isSupportMethod(method: String): Bool {
     return SUPPORT_METHOD.contains(method.toAsciiLower())

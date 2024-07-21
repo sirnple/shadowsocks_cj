@@ -1,6 +1,5 @@
 [dependencies]
-  crypto4cj = { branch = "develop", git = "https://gitee.com/HW-PLLab/crypto4cj.git" }
-
+  
 [package]
   cjc-version = "0.51.4"
   compile-option = ""
@@ -11,4 +10,4 @@
   src-dir = ""
   target-dir = ""
   version = "1.0.0"
-  package-configuration = { "sirnple.shadowsocks.local" = { output-type = "executable" }, "sirnple.shadowsocks.remote" = { output-type = "executable" } }
+  package-configuration = { "shadowsocks_cj.sirnple.shadowsocks.local" = { output-type = "executable" }, "shadowsocks_cj.sirnple.shadowsocks.remote" = { output-type = "executable" } }
