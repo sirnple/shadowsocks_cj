@@ -4,7 +4,7 @@ import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
 import shadowsocks_cj.sirnple.shadowsocks.core.*
 import shadowsocks_cj.sirnple.shadowsocks.util.assert
 
-import std.socket.*
+import std.net.*
 import std.log.*
 import std.reflect.*
 import std.console.Console
@@ -65,14 +65,14 @@ class TcpHandler {
                             log.warn("Invalid status, address negotiation not completed")
                             status = Disconnected
                         case (Some(addr), _) =>
-                            let newRemoteSock = TcpSocket(SocketAddress(config.server, config.serverPort))
+                            let newRemoteSock = TcpSocket(IPSocketAddress(config.server, config.serverPort))
                             newRemoteSock.connect()
                             myRemoteSock = Some(newRemoteSock)
-                            let bindAddr = newRemoteSock.localAddress.address
-                            let bindPort = newRemoteSock.localAddress.port
-                            let bindAtyp = match (newRemoteSock.localAddress.kind) {
-                                case SocketAddressKind.IPv4 => ATYP_IPv4
-                                case SocketAddressKind.IPv6 => ATYP_IPv6
+                            let bindAddr = newRemoteSock.localAddress.getAddressBytes()
+                            let bindPort = (newRemoteSock.localAddress as IPSocketAddress).getOrThrow({ => Exception("Should never happen")}).port
+                            let bindAtyp = match {
+                                case newRemoteSock.localAddress.family == AddressFamily.INET => ATYP_IPv4
+                                case newRemoteSock.localAddress.family == AddressFamily.INET6 => ATYP_IPv6
                                 case _ => throw Exception("Should never happen")
                             }
                             clientSock.write(buildSuccessNegotiationResponse(bindAtyp, bindAddr, [UInt8(bindPort>>8), UInt8(bindPort&0xff)]))

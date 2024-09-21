@@ -18,7 +18,7 @@ import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
 import std.log.SimpleLogger
 import std.reflect.TypeInfo
 import std.console.Console
-import std.socket.{TcpSocket, SocketException, SocketAddress, SocketAddressKind}
+import std.net.{TcpSocket, IPSocketAddress, IPAddress, SocketException}
 
 class TcpHandler {
     private let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
@@ -61,23 +61,21 @@ class TcpHandler {
                                     if (let Some((atyp, dstAddr, dstPort, payload)) <- tryUnpackSsRemoteFirstReceivedPacket(decrypted)) {
                                         match {
                                             case atyp == ATYP_IPv4 =>
-                                                myDstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv4, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                                myDstSock = TcpSocket(IPSocketAddress(dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
                                             case atyp == ATYP_IPv6 =>
-                                                myDstSock = TcpSocket(SocketAddress(SocketAddressKind.IPv6, dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                                myDstSock = TcpSocket(IPSocketAddress(dstAddr, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
                                             case atyp == ATYP_DOMAINNAME =>
-                                                let resolvedAddr = SocketAddress.resolve(String.fromUtf8(dstAddr), UInt16(dstPort[0])<<8 | UInt16(dstPort[1]))
-                                                match (resolvedAddr) {
-                                                    case Some(a) =>
-                                                        let tmpSock = TcpSocket(a)
-                                                        myDstSock = Some(tmpSock)
-                                                        tmpSock.connect()
-                                                        tmpSock.write(payload)
-                                                        isFirst = false
-                                                        log.debug("Send first packet to dst server, ${payload.size} bytes\nafter decrypted: ${payload}")
-                                                    case None =>
-                                                        log.warn("Can't resolve domain name ${String.fromUtf8(dstAddr)}:${UInt16(dstPort[0])<<8 | UInt16(dstPort[1])}")
-                                                        break
+                                                let resolvedAddr = IPAddress.resolve(String.fromUtf8(dstAddr))
+                                                if (resolvedAddr.isEmpty()) {
+                                                    log.warn("Can't resolve domain name ${String.fromUtf8(dstAddr)}:${UInt16(dstPort[0])<<8 | UInt16(dstPort[1])}")
+                                                    break
                                                 }
+                                                let tmpSock = TcpSocket(IPSocketAddress(resolvedAddr[0] /* 取解析出来的第一个IP */, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                                myDstSock = Some(tmpSock)
+                                                tmpSock.connect()
+                                                tmpSock.write(payload)
+                                                isFirst = false
+                                                log.debug("Send first packet to dst server, ${payload.size} bytes\nafter decrypted: ${payload}")
                                             case _ =>
                                                 log.warn("Can't parse packet")
                                                 break

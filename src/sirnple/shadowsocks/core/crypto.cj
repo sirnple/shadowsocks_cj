@@ -12,7 +12,7 @@ import std.console.Console
 import std.crypto.digest.digest
 import std.crypto.cipher.BlockCipher
 import crypto.digest.MD5
-import crypto.crypto.SM4
+import crypto.crypto.{SM4, OperationMode}
 
 
 /**
@@ -37,7 +37,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     private let encryptMode: String
     private let myKey: Array<Byte>
     private let myEncryptEvp: ?SM4 = None
-    private let myDecryptEvp: ?SM4 = None
+    private var myDecryptEvp: ?SM4 = None
     private var myEncryptIv: ?Array<Byte> = None
     private var myDecryptIv: ?Array<Byte> = None
 
@@ -56,7 +56,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
                 let cipher = sm4.encrypt(data)
                 log.debug("First encrypt\niv: ${tmpIv}\nplainData: ${data}\ncipherData: ${cipher}")
                 tmpIv + cipher
-            case Some(_) =>
+            case (_, _) =>
                 throw Exception("Already encrypt first")
         }
     }
@@ -91,11 +91,6 @@ public class PasswordCryptor <: ShadowsocksCryptor {
         }
     }
 
-    ~init() {
-        myEncryptEvp.free()
-        myDecryptEvp.free()
-    }
-
     private func genIv(ivLen: UInt8): Array<Byte> {
         Random().nextUInt8s(Array<Byte>(Int64(ivLen), item: 0))
     }
@@ -103,14 +98,15 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     private func initEncrypt(iv: Array<Byte>): SM4 {
         match ((algorithm, encryptMode, keyLenInBits)) {
             case ("sm4", "cfb", 128) => 
-                let sm4 = SM4(OperationMode.CFB, myKey, iv)
+                let sm4 = SM4(OperationMode.CFB, myKey, iv: iv)
                 myDecryptEvp = Some(sm4)
                 myDecryptIv = Some(iv)
                 return sm4
             case ("sm4", "gcm", 128) =>
-                let sm4 = SM4(OperationMode.GCM, myKey, iv)
+                let sm4 = SM4(OperationMode.GCM, myKey, iv: iv)
                 myDecryptEvp = Some(sm4)
                 myDecryptIv = Some(iv)
+                return sm4
             case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
@@ -118,14 +114,15 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     private func initDecrypt(iv: Array<Byte>): SM4 {
         match ((algorithm, encryptMode, keyLenInBits)) {
             case ("sm4", "cfb", 128) =>
-                let sm4 = SM4(OperationMode.CFB, myKey, iv)
+                let sm4 = SM4(OperationMode.CFB, myKey, iv: iv)
                 myDecryptEvp = Some(sm4)
                 myDecryptIv = Some(iv)
                 return sm4
             case ("sm4", "gcm", 128) =>
-                let sm4 = SM4(OperationMode.GCM, myKey, iv)
+                let sm4 = SM4(OperationMode.GCM, myKey, iv: iv)
                 myDecryptEvp = Some(sm4)
                 myDecryptIv = Some(iv)
+                return sm4
             case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }

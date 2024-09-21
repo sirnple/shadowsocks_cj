@@ -25,6 +25,9 @@ let buildShadowsocksCjDir = Path("target/release/shadowsocks_cj")
 @When[os == "Linux"]
 let libcryptoPath = Path("/home/sirnple/.cjpm/git/crypto4cj/a84a4ee959b30d27bd6a0dc9171a89f1c6aef7f4/lib/libcrypto.so")
 
+@When[os == "Windows"]
+let libcryptoPath = Path("c:\\Program Files (x86)\\DingDing\\main\\current\\libcrypto-1_1-x64.dll")
+
 func copyBinToPublishDir() {
     if (!Directory.exists(publishBinDir)) {
         Directory.create(publishBinDir, recursive: true)
@@ -68,8 +71,20 @@ func copyConfigToPublishDir() {
 }
 
 let publishBall = Path("shadowsocks_cj.zip")
+@When[os == "Linux"]
 func zipPublishDir() {
     let exitCode = Process.run("zip", ["-r", publishBall.toString(), publishDir.toString()])
+    if (exitCode != 0) {
+        println("Zip failed, please zip it manually")
+    }
+}
+@When[os == "Windows"]
+func zipPublishDir() {
+    var exitCode = Process.run("7z")
+    if (exitCode != 0) {
+        println("7z not found, please zip it manually")
+    }
+    exitCode = Process.run("7z", ["a", publishBall.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("Zip failed, please zip it manually")
     }
@@ -85,7 +100,7 @@ func cleanOldPublish() {
 func postBuild(): Int64 {
     cleanOldPublish()
     copyBinToPublishDir()
-    copyLibsToPublishDir()
+    // copyLibsToPublishDir()
     copyRuntimeToPublishDir()
     copyConfigToPublishDir()
     zipPublishDir()

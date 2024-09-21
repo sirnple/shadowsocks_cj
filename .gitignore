@@ -7,6 +7,7 @@
 # Cangjie
 target
 *.macrocall
+build-script-cache
 
 .cache
 

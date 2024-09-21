@@ -6,14 +6,14 @@ import shadowsocks_cj.sirnple.shadowsocks.core.PasswordCryptor
 import std.log.*
 import std.reflect.*
 import std.console.Console
-import std.socket.*
+import std.net.*
 
 public class TcpServer {
     private static let log = SimpleLogger(TypeInfo.of<TcpServer>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
     private let config = ShadowsocksConfig.readConfig()
 
     public func start() {
-        try(serverSocket = TcpServerSocket(bindAt: SocketAddress(config.server, config.serverPort))) {
+        try(serverSocket = TcpServerSocket(bindAt: IPSocketAddress(config.server, config.serverPort))) {
             serverSocket.bind()
             log.debug("TcpServer started: listening at ${serverSocket.localAddress.toString()}")
 

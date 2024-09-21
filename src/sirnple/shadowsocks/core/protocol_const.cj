@@ -2,7 +2,7 @@ package shadowsocks_cj.sirnple.shadowsocks.core
 
 import std.log.SimpleLogger
 import std.console.Console
-import std.socket.{SocketAddress, SocketAddressKind}
+import std.net.{IPSocketAddress, AddressFamily}
 import shadowsocks_cj.sirnple.shadowsocks.config.LOG_CONFIG
 
 public const ATYP_IPv4 = 0x01u8
@@ -121,7 +121,7 @@ public func tryProcessNegotiationRequest(frame: Array<Byte>): ?(ver: Byte, rep: 
             log.debug("Size of frame must be 10 when ATYP_IPv4, but is ${frame.size}")
             return None
         }
-        log.debug("Address negotiation dst address is ${SocketAddress(IPv4, frame[4..8], UInt16(frame[8])<<8 | UInt16(frame[9]))}")
+        log.debug("Address negotiation dst address is ${IPSocketAddress(frame[4..8], UInt16(frame[8])<<8 | UInt16(frame[9]))}")
         return (ver, cmd, rsv, atyp, frame[4..8], frame[8..10])
     }
     if (atyp == ATYP_IPv6) {
@@ -129,7 +129,7 @@ public func tryProcessNegotiationRequest(frame: Array<Byte>): ?(ver: Byte, rep: 
             log.debug("Size of frame must be 22 when ATYP_IPv6, but is ${frame.size}")
             return None
         }
-        log.debug("Address negotiation dst address is ${SocketAddress(IPv6, frame[4..20], UInt16(frame[20])<<8 | UInt16(frame[21]))}")
+        log.debug("Address negotiation dst address is ${IPSocketAddress(frame[4..20], UInt16(frame[20])<<8 | UInt16(frame[21]))}")
         return (ver, cmd, rsv, atyp, frame[4..20], frame[20..22])
     }
     if (atyp == ATYP_DOMAINNAME) {

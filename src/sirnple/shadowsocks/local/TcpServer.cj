@@ -3,7 +3,7 @@ package shadowsocks_cj.sirnple.shadowsocks.local
 import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
 import std.log.SimpleLogger
 import std.reflect.TypeInfo
-import std.socket.{TcpServerSocket, SocketAddress}
+import std.net.{TcpServerSocket, IPSocketAddress}
 import std.console.Console
 
 public class TcpServer {
@@ -11,7 +11,7 @@ public class TcpServer {
     private let config = ShadowsocksConfig.readConfig()
     public TcpServer() {}
     public func start() {
-        try(serverSocket = TcpServerSocket(bindAt: SocketAddress(config.local, config.localPort))) {
+        try(serverSocket = TcpServerSocket(bindAt: IPSocketAddress(config.local, config.localPort))) {
             serverSocket.bind()
             log.debug("TcpServer started: listening at ${serverSocket.localAddress.toString()}")
 
