@@ -28,8 +28,8 @@ class PasswordCryptorTest {
     func test_ss_cryptor_with_diff_method(method: String) {
         let cryptor = PasswordCryptor("password", method)
         let cryptor1 = PasswordCryptor("password", method)
-        let firstPlainData = Random().nextUInt8s(Array<Byte>(100, item: 0))
-        let followPlainData = Random().nextUInt8s(Array<Byte>(100, item: 0))
+        let firstPlainData = Random().nextUInt8s(Array<Byte>(100, repeat: 0))
+        let followPlainData = Random().nextUInt8s(Array<Byte>(100, repeat: 0))
         let encrypted = cryptor.encryptFirst(firstPlainData)
         let decrypted = cryptor1.decryptFirst(encrypted)
         let encrypted1 = cryptor1.encryptFirst(firstPlainData)
@@ -46,8 +46,8 @@ class PasswordCryptorTest {
         for (i in 0..100) {
             let cryptor = PasswordCryptor("password", "aes-256-cfb")
             let cryptor1 = PasswordCryptor("password", "aes-256-cfb")
-            let firstPlainData = Random().nextUInt8s(Array<Byte>(100, item: 0))
-            let followPlainData = Random().nextUInt8s(Array<Byte>(100, item: 0))
+            let firstPlainData = Random().nextUInt8s(Array<Byte>(100, repeat: 0))
+            let followPlainData = Random().nextUInt8s(Array<Byte>(100, repeat: 0))
             let encrypted = cryptor.encryptFirst(firstPlainData)
             let decrypted = cryptor1.decryptFirst(encrypted)
             let encrypted1 = cryptor1.encryptFirst(firstPlainData)
@@ -67,7 +67,7 @@ class PasswordCryptorTest {
             let future = spawn {
                 test_ss_cryptor_many_times()
             }
-            records.append(future)
+            records.add(future)
         }
         records |> forEach { r => r.get() }
     }
