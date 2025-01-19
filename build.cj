@@ -1,5 +1,4 @@
-import std.os.{getEnv, getArgs}
-import std.os.process.*
+import std.process.{Process}
 import std.fs.*
 import std.collection.*
 
@@ -29,45 +28,58 @@ let libcryptoPath = Path("/home/sirnple/.cjpm/git/crypto4cj/a84a4ee959b30d27bd6a
 let libcryptoPath = Path("c:\\Program Files (x86)\\DingDing\\main\\current\\libcrypto-1_1-x64.dll")
 
 func copyBinToPublishDir() {
-    if (!Directory.exists(publishBinDir)) {
+    if (!exists(publishBinDir)) {
         Directory.create(publishBinDir, recursive: true)
     }
-    Directory(buildBinDir).files() |> forEach { fileInfo: FileInfo => File.copy(fileInfo.path, publishBinDir.join(fileInfo.path.fileName??"unknown"), true)}
+    Directory.walk(buildBinDir) {
+        fileInfo => 
+        copy(fileInfo.path, to: publishBinDir.join(fileInfo.path.fileName), overwrite: true)
+        return true
+    }
 }
 
 func copyLibsToPublishDir() {
-    if (!Directory.exists(publishLibDir)) {
+    if (!exists(publishLibDir)) {
         Directory.create(publishLibDir, recursive: true)
     }
-    Directory(buildCrypto4CjDir).files() |> concat(Directory(buildShadowsocksCjDir).files()) |> forEach { fileInfo: FileInfo => File.copy(fileInfo.path, publishLibDir.join(fileInfo.path.fileName??"unknown"), true)}
-    File.copy(libcryptoPath, publishLibDir.join("libcrypto.so"), true)
+    Directory.walk(buildCrypto4CjDir) {
+        fileInfo => 
+        copy(fileInfo.path, to: publishLibDir.join(fileInfo.path.fileName), overwrite: true)
+        return true
+    }
+    Directory.walk(buildShadowsocksCjDir) {
+        fileInfo => 
+        copy(fileInfo.path, to: publishLibDir.join(fileInfo.path.fileName), overwrite: true)
+        return true
+    }
+    copy(libcryptoPath, to: publishLibDir.join("libcrypto.so"), overwrite: true)
 }
 
 func cleanPublishDir() {
-    if (Directory.exists(publishDir)) {
-        Directory.delete(publishDir, recursive: true)
+    if (exists(publishDir)) {
+        remove(publishDir, recursive: true)
     }
 }
 
 @When[os == "Linux"]
 func copyRuntimeToPublishDir() {
-    match (getEnv("CANGJIE_HOME")) {
-        case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/linux_x86_64_llvm"), publishRuntimeDir, true)
+    match (Process.current.getEnv("CANGJIE_HOME")) {
+        case Some(cangjieHome) => copy(Path("${cangjieHome}/runtime/lib/linux_x86_64_llvm"), to: publishRuntimeDir, overwrite: true)
         case None => ()
     }
 }
 
 @When[os == "Windows"]
 func copyRuntimeToPublishDir() {
-    match (getEnv("CANGJIE_HOME")) {
-        case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), publishRuntimeDir, true)
+    match (Process.current.getEnv("CANGJIE_HOME")) {
+        case Some(cangjieHome) => copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), to: publishRuntimeDir, overwrite: true)
         case None => ()
     }
 }
 
 func copyConfigToPublishDir() {
-    File.copy(Path("shadowsocks.json"), publishDir.join("shadowsocks.json"), true)
-    File.copy(Path("log.json"), publishDir.join("log.json"), true)
+    copy(Path("shadowsocks.json"), to: publishDir.join("shadowsocks.json"), overwrite: true)
+    copy(Path("log.json"), to: publishDir.join("log.json"), overwrite: true)
 }
 
 let publishBall = Path("shadowsocks_cj.zip")
@@ -80,20 +92,24 @@ func zipPublishDir() {
 }
 @When[os == "Windows"]
 func zipPublishDir() {
-    var exitCode = Process.run("7z")
-    if (exitCode != 0) {
-        println("7z not found, please zip it manually")
+    var exitCode = -1
+    try {
+        exitCode = Process.run("7z")
+    } catch (e: Exception) {
+        println("7z not found, please install 7z first")
+        Process.current.exit(-1)
     }
     exitCode = Process.run("7z", ["a", publishBall.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("Zip failed, please zip it manually")
+        Process.current.exit(-1)
     }
 }
 
 func cleanOldPublish() {
     cleanPublishDir()
-    if (File.exists(publishBall)) {
-        File.delete(publishBall)
+    if (exists(publishBall)) {
+        remove(publishBall)
     }
 }
 
@@ -109,7 +125,7 @@ func postBuild(): Int64 {
 }
 
 main() {
-    match (getArgs()[0]) {
+    match (Process.current.arguments[0]) {
         case "post-build" => postBuild()
         case _ => 0
     }

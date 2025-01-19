@@ -6,8 +6,8 @@ import std.collection.{ArrayList, HashMap}
 import std.convert.Parsable
 import std.random.Random
 import std.reflect.TypeInfo
-import std.math.min
-import std.log.SimpleLogger
+import std.core.min
+import logger.SimpleLogger
 import std.console.Console
 import std.crypto.digest.digest
 import std.crypto.cipher.BlockCipher
@@ -31,7 +31,7 @@ public interface ShadowsocksCryptor {
 public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
 
 public class PasswordCryptor <: ShadowsocksCryptor {
-    private let log = SimpleLogger(TypeInfo.of<PasswordCryptor>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
+    private let log = SimpleLogger(Console.stdOut)
     private let algorithm: String
     private let keyLenInBits: Int32
     private let encryptMode: String
@@ -46,6 +46,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
         keyLenInBits = Int32.parse(method.split("-")[1])
         encryptMode = method.split("-")[2]
         myKey = deriveMd5Key(keyLenInBits, password)
+        log.level= LOG_CONFIG.logLevel
     }
 
     public func encryptFirst(data: Array<Byte>): Array<Byte> {
@@ -92,7 +93,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     private func genIv(ivLen: UInt8): Array<Byte> {
-        Random().nextUInt8s(Array<Byte>(Int64(ivLen), item: 0))
+        Random().nextUInt8s(Array<Byte>(Int64(ivLen), repeat: 0))
     }
 
     private func initEncrypt(iv: Array<Byte>): SM4 {
@@ -133,12 +134,12 @@ public class PasswordCryptor <: ShadowsocksCryptor {
  */
 public func deriveMd5Key(keyLenInBits: Int32, password: String): Array<Byte> {
     let keyLenInBytes = Int64(keyLenInBits/8)
-    let key = Array<Byte>(keyLenInBytes, item: 0)
+    let key = Array<Byte>(keyLenInBytes, repeat: 0)
     let md5digest = MD5()
     let MD5_DIGEST_LENGTH = md5digest.size
-    let intermediate = Array<Byte>(password.size + MD5_DIGEST_LENGTH, item: 0)
+    let intermediate = Array<Byte>(password.size + MD5_DIGEST_LENGTH, repeat: 0)
     var i = 0
-    let md5sum = Array<Byte>(MD5_DIGEST_LENGTH, item: 0)
+    let md5sum = Array<Byte>(MD5_DIGEST_LENGTH, repeat: 0)
     let passwordArray = password.toArray()
     while (i < keyLenInBytes) {
         if (i==0) {

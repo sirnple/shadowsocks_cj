@@ -15,16 +15,21 @@ import shadowsocks_cj.sirnple.shadowsocks.core.{
 }
 import shadowsocks_cj.sirnple.shadowsocks.util.assert
 import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
-import std.log.SimpleLogger
+import logger.SimpleLogger
 import std.reflect.TypeInfo
 import std.console.Console
 import std.net.{TcpSocket, IPSocketAddress, IPAddress, SocketException}
 
 class TcpHandler {
-    private let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
+    private static let log = SimpleLogger(Console.stdOut)
     private var status = Status.Init
     private var myDstSock: ?TcpSocket = None
     private let ssCryptor: ShadowsocksCryptor
+
+    static init() {
+        log.level = LOG_CONFIG.logLevel
+    }
+
     public TcpHandler(let config: ShadowsocksConfig, let localSock: TcpSocket) {
         ssCryptor = PasswordCryptor(config.password, config.method)
     }
@@ -49,7 +54,7 @@ class TcpHandler {
                         while (true) {
                             match ((myDstSock, isFirst)) {
                                 case (None, true) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = localSock.read(buf)
                                     if (readCount == 0) {
                                         break
@@ -85,7 +90,7 @@ class TcpHandler {
                                         break
                                     }
                                 case (Some(dstSock), false) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = localSock.read(buf)
                                     if (readCount == 0) {
                                         break
@@ -109,7 +114,7 @@ class TcpHandler {
                                     continue
                                 case (true, Some(dstSock)) =>
                                     // send first packet
-                                    let buf = Array<Byte>(SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE, item: 0)
+                                    let buf = Array<Byte>(SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE, repeat: 0)
                                     try {
                                         let readCount = dstSock.read(buf)
                                         if (readCount == 0) {
@@ -130,7 +135,7 @@ class TcpHandler {
                                     }
                                 case (false, Some(dstSock)) =>
                                     // send follow packet
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = dstSock.read(buf)
                                     if (readCount == 0) {
                                         break

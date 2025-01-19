@@ -1,6 +1,6 @@
 package shadowsocks_cj.sirnple.shadowsocks.core
 
-import std.log.SimpleLogger
+import logger.SimpleLogger
 import std.console.Console
 import std.net.{IPSocketAddress, AddressFamily}
 import shadowsocks_cj.sirnple.shadowsocks.config.LOG_CONFIG
@@ -74,7 +74,7 @@ public const CMD_UDP_ASSOCIATE = 0x03u8
 
 public const RESERVED = 0x00u8
 public const ADDR_NEGOTIATE_MAX_LEN = 1 + 1 + 1 + 1 + 1 + 255 + 2
-let log = SimpleLogger(@sourcePackage(), LOG_CONFIG.logLevel, Console.stdOut)
+let log = SimpleLogger(Console.stdOut)
 
 /** 
  * 校验Socks5的地址协商请求，并且返回响应

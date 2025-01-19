@@ -5,12 +5,12 @@ import shadowsocks_cj.sirnple.shadowsocks.core.*
 import shadowsocks_cj.sirnple.shadowsocks.util.assert
 
 import std.net.*
-import std.log.*
+import logger.SimpleLogger
 import std.reflect.*
 import std.console.Console
 
 class TcpHandler {
-    private static let log = SimpleLogger(TypeInfo.of<TcpHandler>().qualifiedName, LOG_CONFIG.logLevel, Console.stdOut)
+    private static let log = SimpleLogger(Console.stdOut)
     private var myRemoteSock: Option<TcpSocket> = None
     private var status: Status = Status.Init
     private var myDstAddr: Option<DstAddr> = None
@@ -18,6 +18,7 @@ class TcpHandler {
 
     public TcpHandler(let config: ShadowsocksConfig, let clientSock: TcpSocket) {
         ssCryptor = PasswordCryptor(config.password, config.method)
+        log.level = LOG_CONFIG.logLevel
     }
 
     public func handle() {
@@ -36,7 +37,7 @@ class TcpHandler {
                     status = Status.Auth
                 case Auth =>
                     log.debug("Status Auth")
-                    let buf = Array<Byte>(AUTH_REQUEST_MAX_LEN, item: 0)
+                    let buf = Array<Byte>(AUTH_REQUEST_MAX_LEN, repeat: 0)
                     let readCount = clientSock.read(buf)
                     match (tryProcessSocks5AuthRequest(buf[0..readCount])) {
                         case Some(authResponse) => 
@@ -48,7 +49,7 @@ class TcpHandler {
                     }
                 case AddressNegotiationRequest =>
                     log.debug("Status AddressNegotiationRequest")
-                    let buf = Array<Byte>(ADDR_NEGOTIATE_MAX_LEN, item: 0)
+                    let buf = Array<Byte>(ADDR_NEGOTIATE_MAX_LEN, repeat: 0)
                     let readCount = clientSock.read(buf)
                     match (tryProcessNegotiationRequest(buf[0..readCount])) {
                         case Some((ver, cmd, rsv, atyp, addr, port)) =>
@@ -85,7 +86,7 @@ class TcpHandler {
                         while (true) {
                             match ((myDstAddr, myRemoteSock, isFirst)) {
                                 case (Some(dstAddr), Some(remoteSock), true) =>
-                                    let buf = Array<Byte>(SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE, item: 0)
+                                    let buf = Array<Byte>(SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE, repeat: 0)
                                     let readCount = clientSock.read(buf)
                                     if (readCount == 0) {
                                         log.debug("Client socket is closed and nothing is relayed")
@@ -97,7 +98,7 @@ class TcpHandler {
                                     log.debug("Send first packet to ss-remote, ${packet.size} bytes\nafter encrypted: ${packet[0..packet.size]}")
                                     isFirst = false
                                 case (Some(dstAddr), Some(remoteSock), false) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = clientSock.read(buf)
                                     if (readCount != 0) {
                                         log.debug("Receive follow packet from client, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
@@ -120,7 +121,7 @@ class TcpHandler {
                         while (true) {
                             match ((isFirst, myRemoteSock)) {
                                 case (true, Some(remoteSock)) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = remoteSock.read(buf)
                                     if (readCount == 0) {
                                         log.debug("ss-remote is closed")
@@ -132,7 +133,7 @@ class TcpHandler {
                                     log.debug("Send first packet to client, ${payload.size} bytes\nafter decrypted: ${payload[0..payload.size]}")
                                     isFirst = false
                                 case (false, Some(remoteSock)) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, item: 0)
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     try {
                                         let readCount = remoteSock.read(buf)
                                         if (readCount == 0) {
