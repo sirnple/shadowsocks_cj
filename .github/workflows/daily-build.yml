@@ -50,17 +50,12 @@ jobs:
       timeout-minutes: 30
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          git clone --branch $LINUX_SDK_TAG --filter=blob:none --no-checkout $LINUX_SDK_REPO sdk-repo
+          git clone --branch $LINUX_SDK_TAG --depth 1 $LINUX_SDK_REPO sdk-repo
         else
-          git clone --branch $WINDOWS_SDK_TAG --filter=blob:none --no-checkout $WINDOWS_SDK_REPO sdk-repo
+          git clone --branch $WINDOWS_SDK_TAG --depth 1 $WINDOWS_SDK_REPO sdk-repo
         fi
         cd sdk-repo
-        git lfs install --local
-        git lfs fetch origin ${{ matrix.sdk_tag }} --include="*.tar.gz,*.zip"
-        git lfs checkout
-        git sparse-checkout init --cone
-        git sparse-checkout set '*.tar.gz' '*.zip'
-        git checkout ${{ matrix.sdk_tag }}
+        git lfs pull origin ${{ matrix.sdk_tag }}
         cd ..
 
     - name: Setup CangJie SDK
