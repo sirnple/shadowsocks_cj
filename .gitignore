@@ -1,9 +1,25 @@
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+.vscode
 *.code-workspace
 
 # Local History for Visual Studio Code
-.history/
+.history
+
+# Cangjie
+target
+*.macrocall
+build-script-cache
+
+.cache
+
+# Build
+*.zip
+
+# Test
+cjcov_logs
+cov_output
+output
+*.gcda
+*.gcno
+
+# Gitee
+.gitee
