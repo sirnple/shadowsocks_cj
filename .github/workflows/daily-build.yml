@@ -50,7 +50,8 @@ jobs:
       run: cjpm build
         
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      if: success()
+      uses: actions/upload-artifact@v4
       with:
         name: shadowsocks_cj-${{ matrix.os }}
         path: shadowsocks_cj.zip
