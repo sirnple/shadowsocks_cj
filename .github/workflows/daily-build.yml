@@ -29,28 +29,39 @@ jobs:
         echo "${{ secrets.GITCODE_SSH_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
         
-    - name: Setup CangJie SDK
+    - name: Setup Git LFS
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          # 克隆仓库
+          sudo apt-get update
+          sudo apt-get install -y git-lfs
+        fi
+        git lfs install --skip-repo
+
+    - name: Clone SDK Repository
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
           git clone --branch $LINUX_SDK_TAG $LINUX_SDK_REPO sdk-repo
-          cd sdk-repo
-          
-          # 根据架构选择压缩包
+        else
+          git clone --branch $WINDOWS_SDK_TAG $WINDOWS_SDK_REPO sdk-repo
+        fi
+        cd sdk-repo
+        git lfs pull
+        cd ..
+
+    - name: Setup CangJie SDK
+      run: |
+        cd sdk-repo
+        if [ "$RUNNER_OS" == "Linux" ]; then
           ARCH=$(uname -m)
           if [ "$ARCH" == "aarch64" ]; then
             tar -xzf cangjie-0.58.3-linux_aarch64.tar.gz
           else
             tar -xzf cangjie-0.58.3-linux_x64.tar.gz
           fi
-          
           cd cangjie
           chmod +x envsetup.sh
           source ./envsetup.sh
         else
-          # Windows处理
-          git clone --branch $WINDOWS_SDK_TAG $WINDOWS_SDK_REPO sdk-repo
-          cd sdk-repo
           unzip cangjie-0.58.3-windows_x64.zip
           cd cangjie
           if [ -f "envsetup.bat" ]; then
