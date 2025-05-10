@@ -1,8 +1,9 @@
 package shadowsocks_cj.sirnple.shadowsocks.config
 
 import encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
-import std.fs.{File, OpenMode}
+import std.fs.{Path, File, OpenMode, exists, Directory, canonicalize, FileInfo}
 import log.LogLevel
+import std.process.CurrentProcess
 
 public let LOG_CONFIG = LogConfig.readConfig()
 public struct LogConfig <: JsonDeserializable<LogConfig> & ToString {
@@ -49,6 +50,26 @@ public struct LogConfig <: JsonDeserializable<LogConfig> & ToString {
     }
 
     public static func readConfig(): LogConfig {
-        LogConfig.fromJson(JsonReader(File("log.json", OpenMode.Append)))
+        let logConfigFile = findConfigFile()
+        return LogConfig.fromJson(JsonReader(logConfigFile))
+    }
+
+    private static func findConfigFile(): File {
+        var configFilePath = Path("log.json")
+        
+        if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
+            return File(configFilePath, OpenMode.Read)
+        }
+        configFilePath = CurrentProcess.current.homeDirectory.join(".shadowsocks_cj").join("log.json")
+        if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
+            return File(configFilePath, OpenMode.Read)
+        }
+        
+        Directory.create(configFilePath, recursive: true)
+        File.writeTo(configFilePath, """
+        {
+            log_level: "info"
+        }""".toArray())
+        return File(configFilePath, OpenMode.Read)
     }
 }

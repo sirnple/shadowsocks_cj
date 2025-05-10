@@ -15,11 +15,11 @@ public class TcpServer {
     public func start() {
         try(serverSocket = TcpServerSocket(bindAt: IPSocketAddress(config.local, config.localPort))) {
             serverSocket.bind()
-            log.debug("TcpServer started: listening at ${serverSocket.localAddress.toString()}")
+            log.info("TcpServer started: listening at ${serverSocket.localAddress.toString()}")
 
             while(true) {
                 let client = serverSocket.accept()
-                log.debug("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
+                log.info("TcpServer accepted a connection from ${client.remoteAddress.toString()}, bind at ${client.localAddress.toString()}")
                 TcpHandler(config, client).handle()
             }
 
