@@ -49,12 +49,13 @@ jobs:
     - name: Clone SDK Repository
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          git clone --branch $LINUX_SDK_TAG $LINUX_SDK_REPO sdk-repo
+          git clone --branch $LINUX_SDK_TAG --depth 1 $LINUX_SDK_REPO sdk-repo
         else
-          git clone --branch $WINDOWS_SDK_TAG $WINDOWS_SDK_REPO sdk-repo
+          git clone --branch $WINDOWS_SDK_TAG --depth 1 $WINDOWS_SDK_REPO sdk-repo
         fi
         cd sdk-repo
-        git lfs pull
+        git lfs fetch origin ${{ matrix.sdk_tag }}
+        git lfs checkout
         cd ..
 
     - name: Setup CangJie SDK
