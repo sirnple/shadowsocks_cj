@@ -31,11 +31,20 @@ jobs:
         
     - name: Setup Git LFS
       run: |
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get update
-          sudo apt-get install -y git-lfs
+        # 通用安装方法（不依赖包管理器）
+        if ! git lfs version &>/dev/null; then
+          echo "Git LFS not found, attempting to install..."
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sudo apt-get install git-lfs
+          else
+            # Windows平台使用官方安装方法
+            curl -L -o git-lfs.exe https://github.com/git-lfs/git-lfs/releases/download/v3.5.1/git-lfs-windows-amd64-v3.5.1.exe
+            ./git-lfs.exe install --skip-download
+          fi
         fi
         git lfs install --skip-repo
+        git lfs version
 
     - name: Clone SDK Repository
       run: |
