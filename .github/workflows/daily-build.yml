@@ -20,13 +20,6 @@ jobs:
         os: [linux]  # 自托管runner只支持linux
     
     steps:
-    - name: Setup environment
-      run: |
-        echo "Current user: $(whoami)"
-        echo "Current directory: $(pwd)"
-        echo "Current date: $(date)"
-        source /home/sirnple/CangjieSDK-Linux-Beta/cangjie/envsetup.sh
-        echo $CANGJIE_HOME
     - uses: actions/checkout@v4
     
     - name: Setup GitCode SSH
@@ -37,7 +30,7 @@ jobs:
         chmod 600 ~/.ssh/id_ed25519
     - name: Build with cjpm
       run: |
-        echo $CANGJIE_HOME
+        source /home/sirnple/CangjieSDK-Linux-Beta/cangjie/envsetup.sh
         cjpm build
         
     - name: Upload artifact
