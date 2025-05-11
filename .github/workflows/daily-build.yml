@@ -25,6 +25,7 @@ jobs:
         echo "Current user: $(whoami)"
         echo "Current directory: $(pwd)"
         echo "Current date: $(date)"
+        source ~/.bashrc
     - uses: actions/checkout@v4
     
     - name: Setup GitCode SSH
