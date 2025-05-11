@@ -20,13 +20,7 @@ let buildShadowsocksCjDir = Path("target/debug/shadowsocks_cj")
 @When[!debug]
 let buildShadowsocksCjDir = Path("target/release/shadowsocks_cj")
 
-// 请根据自己的情况修改
-@When[os == "Linux"]
-let libcryptoPath = Path("/home/sirnple/.cjpm/git/crypto4cj/a84a4ee959b30d27bd6a0dc9171a89f1c6aef7f4/lib/libcrypto.so")
-
-@When[os == "Windows"]
-let libcryptoPath = Path("c:\\Program Files (x86)\\DingDing\\main\\current\\libcrypto-1_1-x64.dll")
-
+@When[os == 'Windows']
 func copyBinToPublishDir() {
     if (!exists(publishBinDir)) {
         Directory.create(publishBinDir, recursive: true)
@@ -38,21 +32,14 @@ func copyBinToPublishDir() {
     }
 }
 
-func copyLibsToPublishDir() {
-    if (!exists(publishLibDir)) {
-        Directory.create(publishLibDir, recursive: true)
+@When[os == 'Linux']
+func copyBinToPublishDir() {
+    if (!exists(publishBinDir)) {
+        Directory.create(publishBinDir, recursive: true)
     }
-    Directory.walk(buildCrypto4CjDir) {
-        fileInfo => 
-        copy(fileInfo.path, to: publishLibDir.join(fileInfo.path.fileName), overwrite: true)
-        return true
-    }
-    Directory.walk(buildShadowsocksCjDir) {
-        fileInfo => 
-        copy(fileInfo.path, to: publishLibDir.join(fileInfo.path.fileName), overwrite: true)
-        return true
-    }
-    copy(libcryptoPath, to: publishLibDir.join("libcrypto.so"), overwrite: true)
+
+    copy(buildBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), overwrite: true)
+    copy(buildBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), overwrite: true)
 }
 
 func cleanPublishDir() {
@@ -61,15 +48,7 @@ func cleanPublishDir() {
     }
 }
 
-@When[os == "Linux"]
-func copyRuntimeToPublishDir() {
-    match (Process.current.getEnv("CANGJIE_HOME")) {
-        case Some(cangjieHome) => copy(Path("${cangjieHome}/runtime/lib/linux_x86_64_llvm"), to: publishRuntimeDir, overwrite: true)
-        case None => ()
-    }
-}
-
-@When[os == "Windows"]
+@When[os == 'Windows']
 func copyRuntimeToPublishDir() {
     match (Process.current.getEnv("CANGJIE_HOME")) {
         case Some(cangjieHome) => copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), to: publishRuntimeDir, overwrite: true)
@@ -82,14 +61,17 @@ func copyConfigToPublishDir() {
     copy(Path("log.json"), to: publishDir.join("log.json"), overwrite: true)
 }
 
-let publishBall = Path("shadowsocks_cj.zip")
+let publishBallForLinux = Path("shadowsocks_cj.tar.gz")
+let publishBallForWindows = Path("shadowsocks_cj.zip")
+
 @When[os == "Linux"]
 func zipPublishDir() {
-    let exitCode = Process.run("zip", ["-r", publishBall.toString(), publishDir.toString()])
+    let exitCode = Process.run("tar", ["-czf", publishBallForLinux.toString(), publishDir.toString()])
     if (exitCode != 0) {
-        println("Zip failed, please zip it manually")
+        println("tar failed")
     }
 }
+
 @When[os == "Windows"]
 func zipPublishDir() {
     var exitCode = -1
@@ -99,7 +81,7 @@ func zipPublishDir() {
         println("7z not found, please install 7z first")
         Process.current.exit(-1)
     }
-    exitCode = Process.run("7z", ["a", publishBall.toString(), publishDir.toString()])
+    exitCode = Process.run("7z", ["a", publishBallForWindows.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("Zip failed, please zip it manually")
         Process.current.exit(-1)
@@ -108,16 +90,29 @@ func zipPublishDir() {
 
 func cleanOldPublish() {
     cleanPublishDir()
-    if (exists(publishBall)) {
-        remove(publishBall)
+    if (exists(publishBallForLinux)) {
+        remove(publishBallForLinux)
+    }
+    if (exists(publishBallForWindows)) {
+        remove(publishBallForWindows)
     }
 }
 
+@When[os == 'Windows']
 func postBuild(): Int64 {
     cleanOldPublish()
     copyBinToPublishDir()
-    // copyLibsToPublishDir()
     copyRuntimeToPublishDir()
+    copyConfigToPublishDir()
+    zipPublishDir()
+    cleanPublishDir()
+    return 0
+}
+
+@When[os == 'Linux']
+func postBuild(): Int64 {
+    cleanOldPublish()
+    copyBinToPublishDir()
     copyConfigToPublishDir()
     zipPublishDir()
     cleanPublishDir()

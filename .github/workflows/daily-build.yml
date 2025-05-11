@@ -14,10 +14,10 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, linux]  # 使用自托管runner
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [linux]  # 自托管runner只支持linux
     
     steps:
     - uses: actions/checkout@v4
@@ -28,29 +28,14 @@ jobs:
         echo "${{ secrets.GITCODE_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
         echo "${{ secrets.GITCODE_SSH_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
-        
-    - name: Setup CangJie SDK
-      run: |
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          git clone --branch $LINUX_SDK_TAG $LINUX_SDK_REPO sdk.tar.gz
-          tar -xzf sdk.tar.gz
-          cd cangjie
-          chmod +x envsetup.sh
-          source ./envsetup.sh
-        else
-          git clone --branch $WINDOWS_SDK_TAG $WINDOWS_SDK_REPO sdk.tar.gz
-          if [ -f "envsetup.bat" ]; then
-            .\envsetup.bat
-          else
-            pwsh -Command "& { .\envsetup.ps1 }"
-          fi
-        fi
-        
     - name: Build with cjpm
-      run: cjpm build
+      run: |
+        source /home/sirnple/CangjieSDK-Linux-Beta/cangjie/envsetup.sh
+        cjpm build
         
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      if: success()
+      uses: actions/upload-artifact@v4
       with:
-        name: shadowsocks_cj-${{ matrix.os }}
-        path: shadowsocks_cj.zip
+        name: shadowsocks_cj
+        path: shadowsocks_cj.tar.gz

@@ -71,6 +71,7 @@ public struct ShadowsocksConfig <: JsonDeserializable<ShadowsocksConfig> & ToStr
     }
 
     public static func readConfig(): ShadowsocksConfig {
-        ShadowsocksConfig.fromJson(JsonReader(File("shadowsocks.json", OpenMode.Read)))
+        let configFile = findConfigFile()
+        ShadowsocksConfig.fromJson(JsonReader(configFile))
     }
 }
