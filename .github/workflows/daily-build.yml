@@ -11,7 +11,6 @@ env:
   WINDOWS_SDK_REPO: "git@gitcode.com:Cangjie/CangjieSDK-Win-Beta.git"
   LINUX_SDK_TAG: "Cangjie-Linux-Canary-0.58.3"
   WINDOWS_SDK_TAG: "Cangjie-Win-Canary-0.58.3"
-  BASH_ENV: ~/.bashrc
 
 jobs:
   build:
@@ -21,11 +20,12 @@ jobs:
         os: [linux]  # 自托管runner只支持linux
     
     steps:
-    - name: Check Current User
+    - name: Setup environment
       run: |
         echo "Current user: $(whoami)"
         echo "Current directory: $(pwd)"
         echo "Current date: $(date)"
+        source /home/sirnple/CangjieSDK-Linux-Beta/cangjie/envsetup.sh
     - uses: actions/checkout@v4
     
     - name: Setup GitCode SSH
