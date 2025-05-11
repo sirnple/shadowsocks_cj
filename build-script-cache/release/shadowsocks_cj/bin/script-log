@@ -68,13 +68,13 @@ Usage: 7z <command> [<switches>...] <archive_name> [<file_names>...] [@listfile]
 7-Zip 24.09 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-11-29
 
 Scanning the drive:
-3 folders, 80 files, 114091234 bytes (109 MiB)
+3 folders, 80 files, 114097410 bytes (109 MiB)
 
 Creating archive: shadowsocks_cj.zip
 
-Add new data to archive: 3 folders, 80 files, 114091234 bytes (109 MiB)
+Add new data to archive: 3 folders, 80 files, 114097410 bytes (109 MiB)
 
 
 Files read from disk: 80
-Archive size: 30076848 bytes (29 MiB)
+Archive size: 30092174 bytes (29 MiB)
 Everything is Ok

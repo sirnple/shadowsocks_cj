@@ -50,29 +50,8 @@ public struct LogConfig <: JsonDeserializable<LogConfig> & ToString {
     }
 
     public static func readConfig(): LogConfig {
-        let logConfigFile = findConfigFile()
+        let logConfigFile = findConfigFileForLog()
         return LogConfig.fromJson(JsonReader(logConfigFile))
     }
 
-    private static func findConfigFile(): File {
-        var configFilePath = Path("log.json")
-        
-        if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
-            return File(configFilePath, OpenMode.Read)
-        }
-
-        let homeDir = CurrentProcess.current.homeDirectory.join(".shadowsocks_cj")
-        configFilePath = homeDir.join("log.json")
-        if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
-            return File(configFilePath, OpenMode.Read)
-        }
-        
-        Directory.create(homeDir, recursive: true)
-        File.create(configFilePath)
-        File.writeTo(configFilePath, """
-        {
-            log_level: "info"
-        }""".toArray())
-        return File(configFilePath, OpenMode.Read)
-    }
 }
