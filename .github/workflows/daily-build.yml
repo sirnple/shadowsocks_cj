@@ -14,10 +14,10 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: [self-hosted, linux]  # 使用自托管runner
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [linux]  # 自托管runner只支持linux
     
     steps:
     - uses: actions/checkout@v4
@@ -47,40 +47,25 @@ jobs:
         git lfs version
 
     - name: Clone SDK Repository
-      timeout-minutes: 30
+      timeout-minutes: 60  # 延长超时时间
       run: |
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          git clone --branch $LINUX_SDK_TAG --depth 1 $LINUX_SDK_REPO sdk-repo
-        else
-          git clone --branch $WINDOWS_SDK_TAG --depth 1 $WINDOWS_SDK_REPO sdk-repo
-        fi
+        git clone --branch $LINUX_SDK_TAG --depth 1 $LINUX_SDK_REPO sdk-repo
         cd sdk-repo
-        ls -l
-        git lfs pull origin ${{ matrix.sdk_tag }}
+        git lfs pull
         cd ..
 
     - name: Setup CangJie SDK
       run: |
         cd sdk-repo
-        if [ "$RUNNER_OS" == "Linux" ]; then
-          ARCH=$(uname -m)
-          if [ "$ARCH" == "aarch64" ]; then
-            tar -xzf cangjie-0.58.3-linux_aarch64.tar.gz
-          else
-            tar -xzf cangjie-0.58.3-linux_x64.tar.gz
-          fi
-          cd cangjie
-          chmod +x envsetup.sh
-          source ./envsetup.sh
+        ARCH=$(uname -m)
+        if [ "$ARCH" == "aarch64" ]; then
+          tar -xzf cangjie-0.58.3-linux_aarch64.tar.gz
         else
-          unzip cangjie-0.58.3-windows_x64.zip
-          cd cangjie
-          if [ -f "envsetup.bat" ]; then
-            .\envsetup.bat
-          else
-            pwsh -Command "& { .\envsetup.ps1 }"
-          fi
+          tar -xzf cangjie-0.58.3-linux_x64.tar.gz
         fi
+        cd cangjie
+        chmod +x envsetup.sh
+        source ./envsetup.sh
         
     - name: Build with cjpm
       run: cjpm build
