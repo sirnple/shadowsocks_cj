@@ -38,4 +38,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: shadowsocks_cj-${{ matrix.os }}
-        path: shadowsocks_cj.zip
+        path: shadowsocks_cj.tar.gz

@@ -60,12 +60,15 @@ public struct LogConfig <: JsonDeserializable<LogConfig> & ToString {
         if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
             return File(configFilePath, OpenMode.Read)
         }
-        configFilePath = CurrentProcess.current.homeDirectory.join(".shadowsocks_cj").join("log.json")
+
+        let homeDir = CurrentProcess.current.homeDirectory.join(".shadowsocks_cj")
+        configFilePath = homeDir.join("log.json")
         if (exists(configFilePath) && FileInfo(configFilePath).canRead()) {
             return File(configFilePath, OpenMode.Read)
         }
         
-        Directory.create(configFilePath, recursive: true)
+        Directory.create(homeDir, recursive: true)
+        File.create(configFilePath)
         File.writeTo(configFilePath, """
         {
             log_level: "info"

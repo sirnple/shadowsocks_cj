@@ -82,14 +82,16 @@ func copyConfigToPublishDir() {
     copy(Path("log.json"), to: publishDir.join("log.json"), overwrite: true)
 }
 
-let publishBall = Path("shadowsocks_cj.zip")
+let publishBallForLinux = Path("shadowsocks_cj.tar.gz")
+let publishBallForWindows = Path("shadowsocks_cj.zip")
 @When[os == "Linux"]
 func zipPublishDir() {
-    let exitCode = Process.run("tar", ["-czf", publishBall.toString(), publishDir.toString()])
+    let exitCode = Process.run("tar", ["-czf", publishBallForLinux.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("tar failed")
     }
 }
+
 @When[os == "Windows"]
 func zipPublishDir() {
     var exitCode = -1
@@ -99,7 +101,7 @@ func zipPublishDir() {
         println("7z not found, please install 7z first")
         Process.current.exit(-1)
     }
-    exitCode = Process.run("7z", ["a", publishBall.toString(), publishDir.toString()])
+    exitCode = Process.run("7z", ["a", publishBallForWindows.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("Zip failed, please zip it manually")
         Process.current.exit(-1)
@@ -108,8 +110,11 @@ func zipPublishDir() {
 
 func cleanOldPublish() {
     cleanPublishDir()
-    if (exists(publishBall)) {
-        remove(publishBall)
+    if (exists(publishBallForLinux)) {
+        remove(publishBallForLinux)
+    }
+    if (exists(publishBallForWindows)) {
+        remove(publishBallForWindows)
     }
 }
 
