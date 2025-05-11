@@ -28,45 +28,6 @@ jobs:
         echo "${{ secrets.GITCODE_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
         echo "${{ secrets.GITCODE_SSH_KEY }}" > ~/.ssh/id_ed25519
         chmod 600 ~/.ssh/id_ed25519
-        
-    - name: Setup Git LFS
-      run: |
-        # 通用安装方法（不依赖包管理器）
-        if ! git lfs version &>/dev/null; then
-          echo "Git LFS not found, attempting to install..."
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-            sudo apt-get install git-lfs
-          else
-            # Windows平台使用官方安装方法
-            curl -L -o git-lfs.exe https://github.com/git-lfs/git-lfs/releases/download/v3.5.1/git-lfs-windows-amd64-v3.5.1.exe
-            ./git-lfs.exe install --skip-download
-          fi
-        fi
-        git lfs install --skip-repo
-        git lfs version
-
-    - name: Clone SDK Repository
-      timeout-minutes: 60  # 延长超时时间
-      run: |
-        git clone --branch $LINUX_SDK_TAG --depth 1 $LINUX_SDK_REPO sdk-repo
-        cd sdk-repo
-        git lfs pull
-        cd ..
-
-    - name: Setup CangJie SDK
-      run: |
-        cd sdk-repo
-        ARCH=$(uname -m)
-        if [ "$ARCH" == "aarch64" ]; then
-          tar -xzf cangjie-0.58.3-linux_aarch64.tar.gz
-        else
-          tar -xzf cangjie-0.58.3-linux_x64.tar.gz
-        fi
-        cd cangjie
-        chmod +x envsetup.sh
-        source ./envsetup.sh
-        
     - name: Build with cjpm
       run: cjpm build
         
