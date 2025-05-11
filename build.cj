@@ -85,9 +85,9 @@ func copyConfigToPublishDir() {
 let publishBall = Path("shadowsocks_cj.zip")
 @When[os == "Linux"]
 func zipPublishDir() {
-    let exitCode = Process.run("zip", ["-r", publishBall.toString(), publishDir.toString()])
+    let exitCode = Process.run("tar", ["-czf", publishBall.toString(), publishDir.toString()])
     if (exitCode != 0) {
-        println("Zip failed, please zip it manually")
+        println("tar failed")
     }
 }
 @When[os == "Windows"]
