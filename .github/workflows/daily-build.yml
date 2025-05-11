@@ -11,6 +11,7 @@ env:
   WINDOWS_SDK_REPO: "git@gitcode.com:Cangjie/CangjieSDK-Win-Beta.git"
   LINUX_SDK_TAG: "Cangjie-Linux-Canary-0.58.3"
   WINDOWS_SDK_TAG: "Cangjie-Win-Canary-0.58.3"
+  BASH_ENV: ~/.bashrc
 
 jobs:
   build:
@@ -25,7 +26,6 @@ jobs:
         echo "Current user: $(whoami)"
         echo "Current directory: $(pwd)"
         echo "Current date: $(date)"
-        source ~/.bashrc
     - uses: actions/checkout@v4
     
     - name: Setup GitCode SSH
