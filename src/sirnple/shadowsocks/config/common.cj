@@ -21,9 +21,10 @@ func findConfigFileForLog(): File {
     
     tryCreateHomeDir()
     File.create(configFilePath)
-    File.writeTo(configFilePath, """
+    File.writeTo(configFilePath,
+    """
     {
-        log_level: "info"
+        "log_level": "info"
     }""".toArray())
     return File(configFilePath, OpenMode.Read)
 }
@@ -43,7 +44,8 @@ func findConfigFile(): File {
     tryCreateHomeDir()
     
     File.create(configFilePath)
-    File.writeTo(configFilePath, """
+    File.writeTo(configFilePath,
+    """
     {
         "server": "0.0.0.0",
         "server_port": 1080,
