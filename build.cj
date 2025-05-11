@@ -38,8 +38,8 @@ func copyBinToPublishDir() {
         Directory.create(publishBinDir, recursive: true)
     }
 
-    copy(publicBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), overwrite: true)
-    copy(publicBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), overwrite: true)
+    copy(buildBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.local'), overwrite: true)
+    copy(buildBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), to: publishBinDir.join('shadowsocks_cj.sirnple.shadowsocks.remote'), overwrite: true)
 }
 
 func cleanPublishDir() {
