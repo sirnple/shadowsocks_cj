@@ -37,5 +37,5 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: shadowsocks_cj-${{ matrix.os }}
+        name: shadowsocks_cj
         path: shadowsocks_cj.tar.gz
