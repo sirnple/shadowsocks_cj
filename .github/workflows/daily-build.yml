@@ -20,7 +20,7 @@ jobs:
         os: [linux]  # 自托管runner只支持linux
     
     steps:
-    - uses: Check Current User
+    - name: Check Current User
       run: |
         echo "Current user: $(whoami)"
         echo "Current directory: $(pwd)"
