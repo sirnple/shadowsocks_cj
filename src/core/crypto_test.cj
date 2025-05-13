@@ -1,9 +1,9 @@
-package shadowsocks_cj.sirnple.shadowsocks.core
+package shadowsocks_cj.core
 
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.collection.{forEach, ArrayList}
-import shadowsocks_cj.sirnple.shadowsocks.config.SUPPORT_METHOD
+import shadowsocks_cj.config.SUPPORT_METHOD
 import std.random.Random
 
 

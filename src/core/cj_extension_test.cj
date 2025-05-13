@@ -1,4 +1,4 @@
-package shadowsocks_cj.sirnple.shadowsocks.core
+package shadowsocks_cj.core
 
 import std.unittest.*
 import std.unittest.testmacro.{Test, Expect}

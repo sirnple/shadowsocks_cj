@@ -1,4 +1,4 @@
-package shadowsocks_cj.sirnple.shadowsocks.core
+package shadowsocks_cj.core
 
 import std.collection.{filter, collectArray, collectArrayList}
 

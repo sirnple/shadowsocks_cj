@@ -1,7 +1,7 @@
-package shadowsocks_cj.sirnple.shadowsocks.core
+package shadowsocks_cj.core
 
-import shadowsocks_cj.sirnple.shadowsocks.util.assert
-import shadowsocks_cj.sirnple.shadowsocks.config.{LOG_CONFIG, SUPPORT_METHOD}
+import shadowsocks_cj.util.assert
+import shadowsocks_cj.config.{LOG_CONFIG, SUPPORT_METHOD}
 import std.collection.{ArrayList, HashMap}
 import std.convert.Parsable
 import std.random.Random

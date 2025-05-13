@@ -1,1 +1,0 @@
-package shadowsocks_cj.sirnple.shadowsocks

@@ -1,4 +1,4 @@
-package shadowsocks_cj.sirnple.shadowsocks.local
+package shadowsocks_cj.local
 
 enum Status {
     | Init

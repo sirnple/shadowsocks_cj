@@ -1,4 +1,4 @@
-package shadowsocks_cj.sirnple.shadowsocks.config
+package shadowsocks_cj.config
 
 import std.fs.{File, Path, FileInfo, OpenMode, exists, Directory}
 import std.process.CurrentProcess

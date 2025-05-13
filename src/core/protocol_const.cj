@@ -1,9 +1,9 @@
-package shadowsocks_cj.sirnple.shadowsocks.core
+package shadowsocks_cj.core
 
 import logger.SimpleLogger
 import std.console.Console
 import std.net.{IPSocketAddress, AddressFamily}
-import shadowsocks_cj.sirnple.shadowsocks.config.LOG_CONFIG
+import shadowsocks_cj.config.LOG_CONFIG
 
 public const ATYP_IPv4 = 0x01u8
 public const ATYP_DOMAINNAME = 0x03u8

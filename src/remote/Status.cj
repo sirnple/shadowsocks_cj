@@ -1,4 +1,4 @@
-package shadowsocks_cj.sirnple.shadowsocks.remote
+package shadowsocks_cj.remote
 
 enum Status {
     | Init

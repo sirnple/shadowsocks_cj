@@ -1,8 +1,8 @@
-package shadowsocks_cj.sirnple.shadowsocks.local
+package shadowsocks_cj.local
 
-import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
-import shadowsocks_cj.sirnple.shadowsocks.core.*
-import shadowsocks_cj.sirnple.shadowsocks.util.assert
+import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
+import shadowsocks_cj.core.*
+import shadowsocks_cj.util.assert
 
 import std.net.*
 import logger.SimpleLogger

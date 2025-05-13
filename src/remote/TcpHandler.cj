@@ -1,6 +1,6 @@
-package shadowsocks_cj.sirnple.shadowsocks.remote
+package shadowsocks_cj.remote
 
-import shadowsocks_cj.sirnple.shadowsocks.core.{
+import shadowsocks_cj.core.{
     tryUnpackSsRemoteFirstReceivedPacket,
     PasswordCryptor,
     ShadowsocksCryptor,
@@ -13,8 +13,8 @@ import shadowsocks_cj.sirnple.shadowsocks.core.{
     ArrayExt,
     SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE
 }
-import shadowsocks_cj.sirnple.shadowsocks.util.assert
-import shadowsocks_cj.sirnple.shadowsocks.config.{ShadowsocksConfig, LOG_CONFIG}
+import shadowsocks_cj.util.assert
+import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
 import logger.SimpleLogger
 import std.reflect.TypeInfo
 import std.console.Console
