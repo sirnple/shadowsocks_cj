@@ -36,7 +36,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     private let keyLenInBits: Int32
     private let encryptMode: String
     private let myKey: Array<Byte>
-    private let myEncryptEvp: ?SM4 = None
+    private var myEncryptEvp: ?SM4 = None
     private var myDecryptEvp: ?SM4 = None
     private var myEncryptIv: ?Array<Byte> = None
     private var myDecryptIv: ?Array<Byte> = None
@@ -50,12 +50,11 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     public func encryptFirst(data: Array<Byte>): Array<Byte> {
-        match ((myDecryptEvp, myDecryptIv)) {
+        match ((myEncryptEvp, myEncryptIv)) {
             case (None, None) =>
                 let tmpIv = genIv(UInt8(IV_LEN))
                 let sm4 = initEncrypt(tmpIv)
                 let cipher = sm4.encrypt(data)
-                log.debug("First encrypt\niv: ${tmpIv}\nplainData: ${data}\ncipherData: ${cipher}")
                 tmpIv + cipher
             case (_, _) =>
                 throw Exception("Already encrypt first")
@@ -63,7 +62,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     public func encryptFollow(data: Array<Byte>): Array<Byte> {
-        match ((myDecryptEvp, myEncryptIv)) {
+        match ((myEncryptEvp, myEncryptIv)) {
             case (Some(sm4), Some(encryptIv)) =>
                 sm4.encrypt(data)
             case _ =>
@@ -76,7 +75,6 @@ public class PasswordCryptor <: ShadowsocksCryptor {
             case Some((iv, encryptedPayload)) =>
                 let sm4 = initDecrypt(iv)
                 let decrypted = sm4.decrypt(encryptedPayload)
-                log.debug("First decrypt\niv: ${iv}\nplainData: ${decrypted}\ncipherData: ${encryptedPayload}")
                 return decrypted
             case None =>
                 throw Exception("Not a valid first packet")
@@ -100,13 +98,13 @@ public class PasswordCryptor <: ShadowsocksCryptor {
         match ((algorithm, encryptMode, keyLenInBits)) {
             case ("sm4", "cfb", 128) => 
                 let sm4 = SM4(OperationMode.CFB, myKey, iv: iv)
-                myDecryptEvp = Some(sm4)
-                myDecryptIv = Some(iv)
+                myEncryptEvp = Some(sm4)
+                myEncryptIv = Some(iv)
                 return sm4
             case ("sm4", "gcm", 128) =>
                 let sm4 = SM4(OperationMode.GCM, myKey, iv: iv)
-                myDecryptEvp = Some(sm4)
-                myDecryptIv = Some(iv)
+                myEncryptEvp = Some(sm4)
+                myEncryptIv = Some(iv)
                 return sm4
             case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }

@@ -60,7 +60,7 @@ class TcpHandler {
                                         break
                                     }
 
-                                    log.debug("Receive first encrypted packet from ss-local, ${readCount} bytes\n${buf[0..readCount]}")
+                                    log.debug("Receive first encrypted packet from ss-local, ${readCount} bytes")
                                     let decrypted = ssCryptor.decryptFirst(buf[0..readCount])
                                     
                                     if (let Some((atyp, dstAddr, dstPort, payload)) <- tryUnpackSsRemoteFirstReceivedPacket(decrypted)) {
@@ -80,7 +80,7 @@ class TcpHandler {
                                                 tmpSock.connect()
                                                 tmpSock.write(payload)
                                                 isFirst = false
-                                                log.debug("Send first packet to dst server, ${payload.size} bytes\nafter decrypted: ${payload}")
+                                                log.debug("Send first packet to dst server, ${payload.size} bytes")
                                             case _ =>
                                                 log.warn("Can't parse packet")
                                                 break
@@ -95,10 +95,10 @@ class TcpHandler {
                                     if (readCount == 0) {
                                         break
                                     }
-                                    log.debug("Receive follow packet from ss-local, ${readCount} bytes\nbefore decrypted: ${buf[0..readCount]}")
+                                    log.debug("Receive follow packet from ss-local, ${readCount} bytes")
                                     let payload = ssCryptor.decryptFollow(buf[0..readCount])
                                     dstSock.write(payload)
-                                    log.debug("Send follow packet to dst server, ${payload.size} bytes\nafter decrypted: ${payload}")
+                                    log.debug("Send follow packet to dst server, ${payload.size} bytes")
                                 case _ =>
                                     log.warn("Invalid status, myDstSock must be Some")
                                     break
@@ -120,10 +120,10 @@ class TcpHandler {
                                         if (readCount == 0) {
                                             break
                                         }
-                                        log.debug("Receive first packet from dst server, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
+                                        log.debug("Receive first packet from dst server, ${readCount} bytes")
                                         let encrypted = ssCryptor.encryptFirst(buf[0..readCount])
                                         localSock.write(encrypted)
-                                        log.debug("Send first packet to ss-local, ${encrypted.size} bytes\nafter encrypted: ${encrypted}")
+                                        log.debug("Send first packet to ss-local, ${encrypted.size} bytes")
                                         isFirst = false
                                     } catch (e: SocketException) {
                                         if (e.message.contains("Socket is not connected")) {
@@ -140,10 +140,10 @@ class TcpHandler {
                                     if (readCount == 0) {
                                         break
                                     }
-                                    log.debug("Receive follow packet from dst server, ${readCount} bytes\nbefore encrypted: ${buf[0..readCount]}")
+                                    log.debug("Receive follow packet from dst server, ${readCount} bytes")
                                     let encrypted = ssCryptor.encryptFollow(buf[0..readCount])
                                     localSock.write(encrypted)
-                                    log.debug("Send follow packet to ss-local, ${encrypted.size} bytes\nafter encrypted: ${encrypted}")
+                                    log.debug("Send follow packet to ss-local, ${encrypted.size} bytes")
                             }
                         }
                     }
