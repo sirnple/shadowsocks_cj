@@ -91,14 +91,19 @@ class TcpHandler {
                                     }
                                 case (Some(dstSock), false) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
-                                    let readCount = localSock.read(buf)
-                                    if (readCount == 0) {
+                                    try {
+                                        let readCount = localSock.read(buf)
+                                        if (readCount == 0) {
+                                            break
+                                        }
+                                        log.debug("Receive follow packet from ss-local, ${readCount} bytes")
+                                        let payload = ssCryptor.decryptFollow(buf[0..readCount])
+                                        dstSock.write(payload)
+                                        log.debug("Send follow packet to dst server, ${payload.size} bytes")
+                                    } catch (e: SocketException) {
+                                        log.warn("upward relay failed when relay follow pack, ${e.message}")
                                         break
                                     }
-                                    log.debug("Receive follow packet from ss-local, ${readCount} bytes")
-                                    let payload = ssCryptor.decryptFollow(buf[0..readCount])
-                                    dstSock.write(payload)
-                                    log.debug("Send follow packet to dst server, ${payload.size} bytes")
                                 case _ =>
                                     log.warn("Invalid status, myDstSock must be Some")
                                     break
@@ -136,14 +141,19 @@ class TcpHandler {
                                 case (false, Some(dstSock)) =>
                                     // send follow packet
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
-                                    let readCount = dstSock.read(buf)
-                                    if (readCount == 0) {
+                                    try {
+                                        let readCount = dstSock.read(buf)
+                                        if (readCount == 0) {
+                                            break
+                                        }
+                                        log.debug("Receive follow packet from dst server, ${readCount} bytes")
+                                        let encrypted = ssCryptor.encryptFollow(buf[0..readCount])
+                                        localSock.write(encrypted)
+                                        log.debug("Send follow packet to ss-local, ${encrypted.size} bytes")
+                                    } catch (e: SocketException) {
+                                        log.warn("downward relay failed when relay follow pack, ${e.message}")
                                         break
                                     }
-                                    log.debug("Receive follow packet from dst server, ${readCount} bytes")
-                                    let encrypted = ssCryptor.encryptFollow(buf[0..readCount])
-                                    localSock.write(encrypted)
-                                    log.debug("Send follow packet to ss-local, ${encrypted.size} bytes")
                             }
                         }
                     }
