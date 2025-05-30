@@ -106,7 +106,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
                 myEncryptEvp = Some(sm4)
                 myEncryptIv = Some(iv)
                 return sm4
-            case _ => throw Exception("Not support method: ${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
+            case _ => throw Exception("Not support method: ${algorithm}-${keyLenInBits}-${encryptMode}, support(case insensitive): ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
         }
     }
 

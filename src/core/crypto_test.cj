@@ -11,8 +11,8 @@ import std.random.Random
 class PasswordCryptorTest {
     @TestCase[firstPlainData in random<Array<Byte>>(), followPlainData in random<Array<Byte>>()]
     func test_ss_cryptor(firstPlainData: Array<Byte>, followPlainData: Array<Byte>) {
-        let cryptor = PasswordCryptor("password", "aes-256-cfb")
-        let cryptor1 = PasswordCryptor("password", "aes-256-cfb")
+        let cryptor = PasswordCryptor("password", "sm4-128-cfb")
+        let cryptor1 = PasswordCryptor("password", "sm4-128-cfb")
         let encrypted = cryptor.encryptFirst(firstPlainData)
         let decrypted = cryptor1.decryptFirst(encrypted)
         let encrypted1 = cryptor1.encryptFirst(firstPlainData)
