@@ -90,57 +90,34 @@ class TcpHandler {
                 case Transerring =>
                     log.debug("Status Transerring")
                     let upwardRelay = spawn {
-                        var isFirst = true
                         while (true) {
-                            match ((myDstAddr, myRemoteSock, isFirst)) {
-                                case (Some(dstAddr), Some(remoteSock), true) =>
-                                    let buf = Array<Byte>(SS_LOCAL_FIRST_SEND_PAYLOAD_MAX_SIZE, repeat: 0)
-                                    try {
-                                        let readCount = clientSock.read(buf)
-                                        if (readCount == 0) {
-                                            log.debug("Client socket is closed and nothing is relayed", ("line", @sourceLine()))
-                                            break
-                                        }
-                                        log.debug(
-                                            "Receive first packet from client, ${readCount} bytes",
-                                            ("line", @sourceLine())
-                                        )
-                                        let packet = ssCryptor.encryptFirst(
-                                            packSsLocalSendFirstSsPacket(dstAddr, buf[0..readCount]))
-                                        remoteSock.write(packet)
-                                        log.debug(
-                                            "Send first packet to ss-remote, ${packet.size} bytes",
-                                            ("line", @sourceLine())
-                                        )
-                                        isFirst = false
-                                    } catch (e: SocketException | SocketTimeoutException) {
-                                        log.warn("upward relay failed when relay first pack, ${e.message}", ("line", @sourceLine()))
-                                        break
-                                        
-                                    }
-                                case (Some(dstAddr), Some(remoteSock), false) =>
+                            match ((myDstAddr, myRemoteSock)) {
+                                case (Some(dstAddr), Some(remoteSock)) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     try {
                                         let readCount = clientSock.read(buf)
                                         if (readCount == 0) {
-                                            log.debug("Client socket is closed by client", ("line", @sourceLine()))
+                                            log.debug("Client socket is closed", ("line", @sourceLine()))
                                             break
                                         }
                                         log.debug(
-                                            "Receive follow packet from client, ${readCount} bytes",
+                                            "Receive packet from client, ${readCount} bytes",
                                             ("line", @sourceLine())
                                         )
-                                        let packet = ssCryptor.encryptFollow(buf[0..readCount])
+                                        let packet = match (myDstAddr) {
+                                            case Some(addr) => ssCryptor.encrypt(packSsLocalSendFirstSsPacket(addr, buf[0..readCount]))
+                                            case None => ssCryptor.encrypt(buf[0..readCount])
+                                        }
                                         remoteSock.write(packet)
                                         log.debug(
-                                            "Send follow packet to ss-remote, ${packet.size} bytes",
+                                            "Send packet to ss-remote, ${packet.size} bytes",
                                             ("line", @sourceLine())
                                         )
                                     } catch (e: SocketException | SocketTimeoutException) {
-                                        log.warn("upward relay failed when relay follow pack, ${e.message}", ("line", @sourceLine()))
+                                        log.warn("upward relay failed, ${e.message}", ("line", @sourceLine()))
                                         break
                                     }
-                                case (_, _, _) =>
+                                case _ =>
                                     log.warn("Invalid status, remoteSock should create in AddressNegotiationResponse status", ("line", @sourceLine()))
                                     break
                             }
@@ -148,10 +125,9 @@ class TcpHandler {
                     }
 
                     let downwardRelay = spawn {
-                        var isFirst = true
                         while (true) {
-                            match ((isFirst, myRemoteSock)) {
-                                case (true, Some(remoteSock)) =>
+                            match (myRemoteSock) {
+                                case Some(remoteSock) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     try {
                                         let readCount = remoteSock.read(buf)
@@ -160,43 +136,20 @@ class TcpHandler {
                                             break
                                         }
                                         log.debug(
-                                            "Receive first packet from ss-remote, ${readCount} bytes",
+                                            "Receive packet from ss-remote, ${readCount} bytes",
                                             ("line", @sourceLine())
                                         )
-                                        let payload = ssCryptor.decryptFirst(buf[0..readCount])
+                                        let payload = ssCryptor.decrypt(buf[0..readCount])
                                         clientSock.write(payload)
                                         log.debug(
-                                            "Send first packet to client, ${payload.size} bytes",
-                                            ("line", @sourceLine())
-                                        )
-                                        isFirst = false
-                                    } catch (e: SocketException | SocketTimeoutException) {
-                                        log.warn("downward relay failed, ${e.message}", ("line", @sourceLine()))
-                                        break
-                                    }
-                                case (false, Some(remoteSock)) =>
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
-                                    try {
-                                        let readCount = remoteSock.read(buf)
-                                        if (readCount == 0) {
-                                            log.debug("ss-remote is closed", ("line", @sourceLine()))
-                                            break
-                                        }
-                                        log.debug(
-                                            "Receive follow packet from ss-remote, ${readCount} bytes",
-                                            ("line", @sourceLine())
-                                        )
-                                        let payload = ssCryptor.decryptFollow(buf[0..readCount])
-                                        clientSock.write(payload)
-                                        log.debug(
-                                            "Send follow packet to client, ${payload.size} bytes", 
+                                            "Send packet to client, ${payload.size} bytes",
                                             ("line", @sourceLine())
                                         )
                                     } catch (e: SocketException | SocketTimeoutException) {
                                         log.warn("downward relay failed, ${e.message}", ("line", @sourceLine()))
                                         break
                                     }
-                                case (_, _) =>
+                                case _ =>
                                     log.warn("Invalid status, remoteSock should create in Connected status", ("line", @sourceLine()))
                                     break
                             }

@@ -22,10 +22,8 @@ import crypto.crypto.{SM4, OperationMode}
  * @author sirnple
  */
 public interface ShadowsocksCryptor {
-    func encryptFirst(data: Array<Byte>): Array<Byte>
-    func encryptFollow(data: Array<Byte>): Array<Byte>
-    func decryptFirst(data: Array<Byte>): Array<Byte>
-    func decryptFollow(data: Array<Byte>): Array<Byte>
+    func encrypt(data: Array<Byte>): Array<Byte>
+    func decrypt(data: Array<Byte>): Array<Byte>
 }
 
 public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
@@ -49,44 +47,28 @@ public class PasswordCryptor <: ShadowsocksCryptor {
         log.level= LOG_CONFIG.logLevel
     }
 
-    public func encryptFirst(data: Array<Byte>): Array<Byte> {
-        match ((myEncryptEvp, myEncryptIv)) {
-            case (None, None) =>
-                let tmpIv = genIv(UInt8(IV_LEN))
-                let sm4 = initEncrypt(tmpIv)
-                let cipher = sm4.encrypt(data)
-                tmpIv + cipher
-            case (_, _) =>
-                throw Exception("Already encrypt first")
+    public func encrypt(data: Array<Byte>): Array<Byte> {
+        match (myEncryptEvp) {
+            case None =>  // 首次加密
+                let iv = genIv(UInt8(IV_LEN))
+                let sm4 = initEncrypt(iv)
+                return iv + sm4.encrypt(data)
+            case Some(evp) =>  // 后续加密
+                return evp.encrypt(data)
         }
     }
-
-    public func encryptFollow(data: Array<Byte>): Array<Byte> {
-        match ((myEncryptEvp, myEncryptIv)) {
-            case (Some(sm4), Some(encryptIv)) =>
-                sm4.encrypt(data)
-            case _ =>
-                throw Exception("Please call encryptFirst first")
-        }
-    }
-
-    public func decryptFirst(data: Array<Byte>): Array<Byte> {
-        match (tryUnpackFirstEncryptedPacket(data)) {
-            case Some((iv, encryptedPayload)) =>
-                let sm4 = initDecrypt(iv)
-                let decrypted = sm4.decrypt(encryptedPayload)
-                return decrypted
-            case None =>
-                throw Exception("Not a valid first packet")
-        }
-    }
-
-    public func decryptFollow(data: Array<Byte>): Array<Byte> {
-        match ((myDecryptEvp, myDecryptIv)) {
-            case (Some(sm4), Some(decryptIv)) =>
-                return sm4.decrypt(data)
-            case _ =>
-                throw Exception("Please call decryptFirst first")
+    
+    public func decrypt(data: Array<Byte>): Array<Byte> {
+        match (myDecryptEvp) {
+            case None =>  // 首次解密
+                match (tryUnpackFirstEncryptedPacket(data)) {
+                    case Some((iv, encryptedPayload)) =>
+                        let sm4 = initDecrypt(iv)
+                        return sm4.decrypt(encryptedPayload)
+                    case None => throw Exception("Invalid first packet")
+                }
+            case Some(evp) =>  // 后续解密
+                return evp.decrypt(data)
         }
     }
 

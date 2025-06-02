@@ -50,18 +50,17 @@ class TcpHandler {
                 case Status.Connected =>
                     log.debug("Status Connected")
                     let upwardRelay = spawn {
-                        var isFirst = true
                         while (true) {
-                            match ((myDstSock, isFirst)) {
-                                case (None, true) =>
+                            match (myDstSock) {
+                                case None =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     let readCount = localSock.read(buf)
                                     if (readCount == 0) {
                                         break
                                     }
 
-                                    log.debug("Receive first encrypted packet from ss-local, ${readCount} bytes")
-                                    let decrypted = ssCryptor.decryptFirst(buf[0..readCount])
+                                    log.debug("Receive encrypted packet from ss-local, ${readCount} bytes")
+                                    let decrypted = ssCryptor.decrypt(buf[0..readCount])
                                     
                                     if (let Some((atyp, dstAddr, dstPort, payload)) <- tryUnpackSsRemoteFirstReceivedPacket(decrypted)) {
                                         match {
@@ -75,33 +74,32 @@ class TcpHandler {
                                                     log.warn("Can't resolve domain name ${String.fromUtf8(dstAddr)}:${UInt16(dstPort[0])<<8 | UInt16(dstPort[1])}")
                                                     break
                                                 }
-                                                let tmpSock = TcpSocket(IPSocketAddress(resolvedAddr[0] /* 取解析出来的第一个IP */, UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
+                                                let tmpSock = TcpSocket(IPSocketAddress(resolvedAddr[0], UInt16(dstPort[0])<<8 | UInt16(dstPort[1])))
                                                 myDstSock = Some(tmpSock)
                                                 tmpSock.connect()
                                                 tmpSock.write(payload)
-                                                isFirst = false
-                                                log.debug("Send first packet to dst server, ${payload.size} bytes")
+                                                log.debug("Send packet to dst server, ${payload.size} bytes")
                                             case _ =>
                                                 log.warn("Can't parse packet")
                                                 break
                                         }
                                     } else {
-                                        log.warn("Invalid first decrypted packet, size: ${decrypted.size}, content: ${decrypted}")
+                                        log.warn("Invalid decrypted packet, size: ${decrypted.size}, content: ${decrypted}")
                                         break
                                     }
-                                case (Some(dstSock), false) =>
+                                case Some(dstSock) =>
                                     let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     try {
                                         let readCount = localSock.read(buf)
                                         if (readCount == 0) {
                                             break
                                         }
-                                        log.debug("Receive follow packet from ss-local, ${readCount} bytes")
-                                        let payload = ssCryptor.decryptFollow(buf[0..readCount])
+                                        log.debug("Receive packet from ss-local, ${readCount} bytes")
+                                        let payload = ssCryptor.decrypt(buf[0..readCount])
                                         dstSock.write(payload)
-                                        log.debug("Send follow packet to dst server, ${payload.size} bytes")
+                                        log.debug("Send packet to dst server, ${payload.size} bytes")
                                     } catch (e: SocketException) {
-                                        log.warn("upward relay failed when relay follow pack, ${e.message}")
+                                        log.warn("upward relay failed, ${e.message}")
                                         break
                                     }
                                 case _ =>
@@ -111,25 +109,22 @@ class TcpHandler {
                         }
                     }
                     let downwardRelay = spawn {
-                        var isFirst = true
                         while (true) {
-                            match ((isFirst, myDstSock)) {
-                                case (_, None) =>
+                            match (myDstSock) {
+                                case None =>
                                     // dstSock is not ready, need wait for dstSock init in upwardRelay
                                     continue
-                                case (true, Some(dstSock)) =>
-                                    // send first packet
-                                    let buf = Array<Byte>(SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE, repeat: 0)
+                                case Some(dstSock) =>
+                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
                                     try {
                                         let readCount = dstSock.read(buf)
                                         if (readCount == 0) {
                                             break
                                         }
-                                        log.debug("Receive first packet from dst server, ${readCount} bytes")
-                                        let encrypted = ssCryptor.encryptFirst(buf[0..readCount])
+                                        log.debug("Receive packet from dst server, ${readCount} bytes")
+                                        let encrypted = ssCryptor.encrypt(buf[0..readCount])
                                         localSock.write(encrypted)
-                                        log.debug("Send first packet to ss-local, ${encrypted.size} bytes")
-                                        isFirst = false
+                                        log.debug("Send packet to ss-local, ${encrypted.size} bytes")
                                     } catch (e: SocketException) {
                                         if (e.message.contains("Socket is not connected")) {
                                             continue
@@ -137,22 +132,6 @@ class TcpHandler {
                                             log.warn("Read from remote server failed, ${e.message}")
                                             break
                                         }
-                                    }
-                                case (false, Some(dstSock)) =>
-                                    // send follow packet
-                                    let buf = Array<Byte>(RELAY_BLOCK_SIZE, repeat: 0)
-                                    try {
-                                        let readCount = dstSock.read(buf)
-                                        if (readCount == 0) {
-                                            break
-                                        }
-                                        log.debug("Receive follow packet from dst server, ${readCount} bytes")
-                                        let encrypted = ssCryptor.encryptFollow(buf[0..readCount])
-                                        localSock.write(encrypted)
-                                        log.debug("Send follow packet to ss-local, ${encrypted.size} bytes")
-                                    } catch (e: SocketException) {
-                                        log.warn("downward relay failed when relay follow pack, ${e.message}")
-                                        break
                                     }
                             }
                         }
