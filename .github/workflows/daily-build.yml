@@ -1,0 +1,41 @@
+name: Daily Build
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # 每天UTC时间0点运行
+  workflow_dispatch:      # 允许手动触发
+
+env:
+  # SDK仓库配置
+  LINUX_SDK_REPO: "git@gitcode.com:Cangjie/CangjieSDK-Linux-Beta.git"
+  WINDOWS_SDK_REPO: "git@gitcode.com:Cangjie/CangjieSDK-Win-Beta.git"
+  LINUX_SDK_TAG: "Cangjie-Linux-Canary-0.58.3"
+  WINDOWS_SDK_TAG: "Cangjie-Win-Canary-0.58.3"
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux]  # 使用自托管runner
+    strategy:
+      matrix:
+        os: [linux]  # 自托管runner只支持linux
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup GitCode SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.GITCODE_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+        echo "${{ secrets.GITCODE_SSH_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+    - name: Build with cjpm
+      run: |
+        source /home/sirnple/CangjieSDK-Linux-Beta/cangjie/envsetup.sh
+        cjpm build
+        
+    - name: Upload artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: shadowsocks_cj
+        path: shadowsocks_cj.tar.gz

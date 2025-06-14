@@ -1,7 +1,6 @@
-from std import os.*
-from std import os.process.*
-from std import fs.*
-from std import collection.*
+import std.process.{Process}
+import std.fs.*
+import std.collection.*
 
 let publishDir = Path("shadowsocks_cj")
 let publishBinDir = publishDir.join("bin")
@@ -21,71 +20,88 @@ let buildShadowsocksCjDir = Path("target/debug/shadowsocks_cj")
 @When[!debug]
 let buildShadowsocksCjDir = Path("target/release/shadowsocks_cj")
 
-// 请根据自己的情况修改
-@When[os == "linux"]
-let libcryptoPath = Path("/home/sirnple/.cjpm/git/crypto4cj/a84a4ee959b30d27bd6a0dc9171a89f1c6aef7f4/lib/libcrypto.so")
-
+@When[os == 'Windows']
 func copyBinToPublishDir() {
-    if (!Directory.exists(publishBinDir)) {
+    if (!exists(publishBinDir)) {
         Directory.create(publishBinDir, recursive: true)
     }
-    Directory(buildBinDir).files() |> forEach { fileInfo: FileInfo => File.copy(fileInfo.path, publishBinDir.join(fileInfo.path.fileName??"unknown"), true)}
+    Directory.walk(buildBinDir) {
+        fileInfo => 
+        copy(fileInfo.path, to: publishBinDir.join(fileInfo.path.fileName), overwrite: true)
+        return true
+    }
 }
 
-func copyLibsToPublishDir() {
-    if (!Directory.exists(publishLibDir)) {
-        Directory.create(publishLibDir, recursive: true)
+@When[os == 'Linux']
+func copyBinToPublishDir() {
+    if (!exists(publishBinDir)) {
+        Directory.create(publishBinDir, recursive: true)
     }
-    Directory(buildCrypto4CjDir).files() |> concat(Directory(buildShadowsocksCjDir).files()) |> forEach { fileInfo: FileInfo => File.copy(fileInfo.path, publishLibDir.join(fileInfo.path.fileName??"unknown"), true)}
-    File.copy(libcryptoPath, publishLibDir.join("libcrypto.so"), true)
+
+    copy(buildBinDir.join('shadowsocks_cj.local'), to: publishBinDir.join('shadowsocks_cj.local'), overwrite: true)
+    copy(buildBinDir.join('shadowsocks_cj.remote'), to: publishBinDir.join('shadowsocks_cj.remote'), overwrite: true)
 }
 
 func cleanPublishDir() {
-    if (Directory.exists(publishDir)) {
-        Directory.delete(publishDir, recursive: true)
+    if (exists(publishDir)) {
+        remove(publishDir, recursive: true)
     }
 }
 
-@When[os == "linux"]
+@When[os == 'Windows']
 func copyRuntimeToPublishDir() {
-    match (os.getEnv("CANGJIE_HOME")) {
-        case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/linux_x86_64_llvm"), publishRuntimeDir, true)
-        case None => ()
-    }
-}
-
-@When[os == "windows"]
-func copyRuntimeToPublishDir() {
-    match (os.getEnv("CANGJIE_HOME")) {
-        case Some(cangjieHome) => Directory.copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), publishRuntimeDir, true)
+    match (Process.current.getEnv("CANGJIE_HOME")) {
+        case Some(cangjieHome) => copy(Path("${cangjieHome}/runtime/lib/windows_x86_64_llvm"), to: publishRuntimeDir, overwrite: true)
         case None => ()
     }
 }
 
 func copyConfigToPublishDir() {
-    File.copy(Path("shadowsocks.json"), publishDir.join("shadowsocks.json"), true)
-    File.copy(Path("log.json"), publishDir.join("log.json"), true)
+    copy(Path("shadowsocks.json"), to: publishDir.join("shadowsocks.json"), overwrite: true)
+    copy(Path("log.json"), to: publishDir.join("log.json"), overwrite: true)
 }
 
-let publishBall = Path("shadowsocks_cj.zip")
+let publishBallForLinux = Path("shadowsocks_cj.tar.gz")
+let publishBallForWindows = Path("shadowsocks_cj.zip")
+
+@When[os == "Linux"]
 func zipPublishDir() {
-    let exitCode = Process.run("zip", ["-r", publishBall.toString(), publishDir.toString()])
+    let exitCode = Process.run("tar", ["-czf", publishBallForLinux.toString(), publishDir.toString()])
+    if (exitCode != 0) {
+        println("tar failed")
+    }
+}
+
+@When[os == "Windows"]
+func zipPublishDir() {
+    var exitCode = -1
+    try {
+        exitCode = Process.run("7z")
+    } catch (e: Exception) {
+        println("7z not found, please install 7z first")
+        Process.current.exit(-1)
+    }
+    exitCode = Process.run("7z", ["a", publishBallForWindows.toString(), publishDir.toString()])
     if (exitCode != 0) {
         println("Zip failed, please zip it manually")
+        Process.current.exit(-1)
     }
 }
 
 func cleanOldPublish() {
     cleanPublishDir()
-    if (File.exists(publishBall)) {
-        File.delete(publishBall)
+    if (exists(publishBallForLinux)) {
+        remove(publishBallForLinux)
+    }
+    if (exists(publishBallForWindows)) {
+        remove(publishBallForWindows)
     }
 }
 
+@When[os == 'Windows']
 func postBuild(): Int64 {
     cleanOldPublish()
     copyBinToPublishDir()
-    copyLibsToPublishDir()
     copyRuntimeToPublishDir()
     copyConfigToPublishDir()
     zipPublishDir()
@@ -93,8 +109,18 @@ func postBuild(): Int64 {
     return 0
 }
 
+@When[os == 'Linux']
+func postBuild(): Int64 {
+    cleanOldPublish()
+    copyBinToPublishDir()
+    copyConfigToPublishDir()
+    zipPublishDir()
+    cleanPublishDir()
+    return 0
+}
+
 main() {
-    match (os.getArgs()[0]) {
+    match (Process.current.arguments[0]) {
         case "post-build" => postBuild()
         case _ => 0
     }

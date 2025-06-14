@@ -23,3 +23,19 @@ sequenceDiagram
     L->>C: socks5 address negotiation response
     C->>L: socks5 data request
 ```
+
+# TcpHandler状态转移图
+```mermaid
+stateDiagram-v2
+    [*] --> Init
+    Init --> Auth
+    Auth --> Negotiating: 认证成功
+    Negotiating --> Established: 协商完成
+    Established --> Transferring: 开始传输
+    Transferring --> Established: 传输暂停
+    Established --> Closing: 正常关闭
+    Negotiating --> Closing: 协商失败
+    Transferring --> Closing: 传输异常
+    Closing --> [*]
+
+```
