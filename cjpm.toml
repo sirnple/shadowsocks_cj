@@ -4,7 +4,7 @@
   cjc-version = "0.58.3"
   compile-option = ""
   description = "nothing here"
-  link-option = "-rpath=lib:runtime"
+  link-option = "-lcrypto"
   name = "shadowsocks_cj"
   output-type = "executable"
   src-dir = ""
