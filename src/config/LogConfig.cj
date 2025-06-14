@@ -1,8 +1,8 @@
 package shadowsocks_cj.config
 
-import encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
+import stdx.encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
 import std.fs.{Path, File, OpenMode, exists, Directory, canonicalize, FileInfo}
-import log.LogLevel
+import stdx.log.LogLevel
 import std.process.CurrentProcess
 
 public let LOG_CONFIG = LogConfig.readConfig()

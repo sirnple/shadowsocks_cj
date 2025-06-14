@@ -1,6 +1,6 @@
 package shadowsocks_cj.core
 
-import logger.SimpleLogger
+import stdx.logger.SimpleLogger
 import std.console.Console
 import std.net.{IPSocketAddress, AddressFamily}
 import shadowsocks_cj.config.LOG_CONFIG

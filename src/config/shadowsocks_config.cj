@@ -1,6 +1,6 @@
 package shadowsocks_cj.config
 
-import encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
+import stdx.encoding.json.stream.{JsonDeserializable, JsonReader, JsonToken}
 import std.fs.*
 import std.io.*
 

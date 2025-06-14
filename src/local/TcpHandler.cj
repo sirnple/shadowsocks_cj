@@ -4,7 +4,7 @@ import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
 import shadowsocks_cj.core.*
 import shadowsocks_cj.util.assert
 import std.net.*
-import logger.SimpleLogger
+import stdx.logger.SimpleLogger
 import std.reflect.*
 import std.console.Console
 

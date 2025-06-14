@@ -15,7 +15,7 @@ import shadowsocks_cj.core.{
 }
 import shadowsocks_cj.util.assert
 import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
-import logger.SimpleLogger
+import stdx.logger.SimpleLogger
 import std.reflect.TypeInfo
 import std.console.Console
 import std.net.{TcpSocket, IPSocketAddress, IPAddress, SocketException}
