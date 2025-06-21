@@ -1,7 +1,6 @@
 package shadowsocks_cj.core.crypto
 
-import std.unittest.testmacro.*
-import std.collection.forEach
+import std.unittest.testmacro.{Test}
 
 @Test
 func testOpenSSL() {
@@ -134,7 +133,9 @@ func testAES256CFBStreaming() {
     }
 
     // 验证解密结果
-    @Assert(decrypted.array == plaintext)
+    if (decrypted.array != plaintext) {
+        throw Exception()
+    }
 
     // 清理资源
     unsafe { 

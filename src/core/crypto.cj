@@ -10,6 +10,7 @@ import std.core.min
 import std.console.Console
 import std.crypto.cipher.BlockCipher
 import std.crypto.digest.digest
+import std.env.getStdOut
 import stdx.logger.SimpleLogger
 import stdx.crypto.digest.MD5
 import stdx.crypto.crypto.{SM4, OperationMode}
@@ -29,7 +30,7 @@ public interface ShadowsocksCryptor {
 public const IV_LEN = 16 // 目前约定iv的值为16字节，在发送的packet就可以不带iv.len了
 
 public class PasswordCryptor <: ShadowsocksCryptor {
-    private let log = SimpleLogger(Console.stdOut)
+    private let log = SimpleLogger(getStdOut())
     private let algorithm: String
     private let keyLenInBits: Int32
     private let encryptMode: String
@@ -73,7 +74,7 @@ public class PasswordCryptor <: ShadowsocksCryptor {
     }
 
     private func genIv(ivLen: UInt8): Array<Byte> {
-        Random().nextUInt8s(Array<Byte>(Int64(ivLen), repeat: 0))
+        Random().nextBytes(Int32(ivLen))
     }
 
     private func initEncrypt(iv: Array<Byte>): SM4 {
@@ -123,7 +124,7 @@ public func deriveMd5Key(keyLenInBits: Int32, password: String): Array<Byte> {
     let passwordArray = password.toArray()
     while (i < keyLenInBytes) {
         if (i==0) {
-            digest(md5digest, password).copyTo(md5sum, 0, 0, MD5_DIGEST_LENGTH)
+            digest(md5digest, passwordArray).copyTo(md5sum, 0, 0, MD5_DIGEST_LENGTH)
         } else {
             md5sum.copyTo(intermediate, 0, 0, MD5_DIGEST_LENGTH)
             passwordArray.copyTo(intermediate, 0, MD5_DIGEST_LENGTH, password.size)

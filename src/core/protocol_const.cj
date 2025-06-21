@@ -3,6 +3,7 @@ package shadowsocks_cj.core
 import stdx.logger.SimpleLogger
 import std.console.Console
 import std.net.{IPSocketAddress, AddressFamily}
+import std.env.getStdOut
 import shadowsocks_cj.config.LOG_CONFIG
 
 public const ATYP_IPv4 = 0x01u8
@@ -74,7 +75,7 @@ public const CMD_UDP_ASSOCIATE = 0x03u8
 
 public const RESERVED = 0x00u8
 public const ADDR_NEGOTIATE_MAX_LEN = 1 + 1 + 1 + 1 + 1 + 255 + 2
-let log = SimpleLogger(Console.stdOut)
+let log = SimpleLogger(getStdOut())
 
 /** 
  * 校验Socks5的地址协商请求，并且返回响应

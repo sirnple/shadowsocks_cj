@@ -7,9 +7,10 @@ import stdx.logger.SimpleLogger
 import std.reflect.*
 import std.console.Console
 import std.net.*
+import std.env.getStdOut
 
 public class TcpServer {
-    private static let log = SimpleLogger(Console.stdOut)
+    private static let log = SimpleLogger(getStdOut())
     private let config = ShadowsocksConfig.readConfig()
     static init() {
         log.level = LOG_CONFIG.logLevel

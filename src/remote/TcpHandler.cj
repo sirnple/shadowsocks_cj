@@ -19,9 +19,10 @@ import stdx.logger.SimpleLogger
 import std.reflect.TypeInfo
 import std.console.Console
 import std.net.{TcpSocket, IPSocketAddress, IPAddress, SocketException}
+import std.env.getStdOut
 
 class TcpHandler {
-    private static let log = SimpleLogger(Console.stdOut)
+    private static let log = SimpleLogger(getStdOut())
     private var status = Status.Init
     private var myDstSock: ?TcpSocket = None
     private let ssCryptor: ShadowsocksCryptor
@@ -102,9 +103,6 @@ class TcpHandler {
                                         log.warn("upward relay failed, ${e.message}")
                                         break
                                     }
-                                case _ =>
-                                    log.warn("Invalid status, myDstSock must be Some")
-                                    break
                             }
                         }
                     }

@@ -2,8 +2,9 @@ package shadowsocks_cj.config
 
 import std.fs.{File, Path, FileInfo, OpenMode, exists, Directory}
 import std.process.CurrentProcess
+import std.env.getHomeDirectory
 
-let HOME_DIR = CurrentProcess.current.homeDirectory.join(".shadowsocks_cj")
+let HOME_DIR = getHomeDirectory().join(".shadowsocks_cj")
 
 
 func findConfigFileForLog(): File {

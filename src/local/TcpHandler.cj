@@ -3,13 +3,14 @@ package shadowsocks_cj.local
 import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
 import shadowsocks_cj.core.*
 import shadowsocks_cj.util.assert
+import std.env.getStdOut
 import std.net.*
 import stdx.logger.SimpleLogger
 import std.reflect.*
 import std.console.Console
 
 class TcpHandler {
-    private static let log = SimpleLogger(Console.stdOut).withAttrs([("name", "local.TcpHandler")])
+    private static let log = SimpleLogger(getStdOut()).withAttrs([("name", "local.TcpHandler")])
     private var myRemoteSock: Option<TcpSocket> = None
     private var status: Status = Status.Init
     private var myDstAddr: Option<DstAddr> = None
@@ -174,8 +175,5 @@ class TcpHandler {
                     break
             }
         }
-    }
-
-    private func writeToClient() {
     }
 }
