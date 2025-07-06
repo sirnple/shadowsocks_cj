@@ -1,7 +1,7 @@
 package shadowsocks_cj.remote
 
 import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
-import shadowsocks_cj.core.PasswordCryptor
+import shadowsocks_cj.core.crypto.PasswordCryptor
 
 import stdx.logger.SimpleLogger
 import std.reflect.*

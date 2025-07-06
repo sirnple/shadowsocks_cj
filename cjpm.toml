@@ -10,7 +10,10 @@
   src-dir = ""
   target-dir = ""
   version = "1.0.0"
-  package-configuration = { "shadowsocks_cj.local" = { output-type = "executable" }, "shadowsocks_cj.remote" = { output-type = "executable" } }
+[package.package-configuration."shadowsocks_cj.local"]
+  output-type = "executable"
+[package.package-configuration."shadowsocks_cj.remote"]
+  output-type = "executable"
 
 [target.x86_64-w64-mingw32]
   compile-option = "-lcrypt32"

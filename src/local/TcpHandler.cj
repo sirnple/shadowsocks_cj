@@ -2,6 +2,7 @@ package shadowsocks_cj.local
 
 import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
 import shadowsocks_cj.core.*
+import shadowsocks_cj.core.crypto.{ShadowsocksCryptor, PasswordCryptor}
 import shadowsocks_cj.util.assert
 import std.env.getStdOut
 import std.net.*
@@ -91,6 +92,7 @@ class TcpHandler {
                 case Transerring =>
                     log.debug("Status Transerring")
                     let upwardRelay = spawn {
+                        var first = true
                         while (true) {
                             match ((myDstAddr, myRemoteSock)) {
                                 case (Some(dstAddr), Some(remoteSock)) =>
@@ -105,9 +107,12 @@ class TcpHandler {
                                             "Receive packet from client, ${readCount} bytes",
                                             ("line", @sourceLine())
                                         )
-                                        let packet = match (myDstAddr) {
-                                            case Some(addr) => ssCryptor.encrypt(packSsLocalSendFirstSsPacket(addr, buf[0..readCount]))
-                                            case None => ssCryptor.encrypt(buf[0..readCount])
+                                        let packet = match (first) {
+                                            case true => 
+                                                let a = ssCryptor.encrypt(packSsLocalSendFirstSsPacket(dstAddr, buf[0..readCount]))
+                                                first = false
+                                                a
+                                            case false => ssCryptor.encrypt(buf[0..readCount])
                                         }
                                         remoteSock.write(packet)
                                         log.debug(

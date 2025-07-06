@@ -20,6 +20,8 @@ public const METHOD_NOACCEPTABLE = 0xffu8
 public let SUPPORT_AUTH_METHODS = [METHOD_NOAUTH, METHOD_GSSAPI, METHOD_USERPASS]
 public const AUTH_REQUEST_MAX_LEN = 1 + 1 + 255
 
+public const IV_LEN = 16
+
 /** 
  * 校验Socks5的认证请求，并且返回响应
  * Request:

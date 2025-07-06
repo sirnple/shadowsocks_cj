@@ -2,8 +2,6 @@ package shadowsocks_cj.remote
 
 import shadowsocks_cj.core.{
     tryUnpackSsRemoteFirstReceivedPacket,
-    PasswordCryptor,
-    ShadowsocksCryptor,
     ATYP_IPv4,
     ATYP_IPv6,
     ATYP_DOMAINNAME,
@@ -13,6 +11,7 @@ import shadowsocks_cj.core.{
     ArrayExt,
     SS_REMOTE_FIRST_SEND_PAYLOAD_MAX_SIZE
 }
+import shadowsocks_cj.core.crypto.{ShadowsocksCryptor, PasswordCryptor}
 import shadowsocks_cj.util.assert
 import shadowsocks_cj.config.{ShadowsocksConfig, LOG_CONFIG}
 import stdx.logger.SimpleLogger

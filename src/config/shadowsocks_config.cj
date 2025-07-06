@@ -40,11 +40,7 @@ public struct ShadowsocksConfig <: JsonDeserializable<ShadowsocksConfig> & ToStr
                             case "server_port" => port = UInt16(r.readValue<Int>())
                             case "password" => password = r.readValue<String>()
                             case "method" =>
-                                let uncheckedMethod = r.readValue<String>()
-                                if (!isSupportMethod(uncheckedMethod)) {
-                                    throw Exception("Read config error, method ${uncheckedMethod} not support, support: ${String.join(SUPPORT_METHOD, delimiter: ", ")}")
-                                }
-                                method = uncheckedMethod
+                                method = r.readValue<String>()
                             case "local" => local = r.readValue<String>()
                             case "local_port" => localPort = UInt16(r.readValue<Int>())
                             case _ => ()

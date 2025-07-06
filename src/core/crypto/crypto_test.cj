@@ -1,4 +1,4 @@
-package shadowsocks_cj.core
+package shadowsocks_cj.core.crypto
 
 import std.unittest.*
 import std.unittest.testmacro.*

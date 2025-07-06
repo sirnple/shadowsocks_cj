@@ -1,5 +1,7 @@
 package shadowsocks_cj.core.crypto
 
+import std.collection.{Map, HashMap}
+
 @C
 public struct EVP_CIPHER {
 }
@@ -20,3 +22,5 @@ foreign func EVP_DecryptUpdate(ctx: CPointer<EVP_CIPHER_CTX>, out: CPointer<Byte
 foreign func EVP_EncryptFinal_ex(ctx: CPointer<EVP_CIPHER_CTX>, out: CPointer<Byte>, outl: CPointer<Int32>): Int32
 foreign func EVP_DecryptFinal_ex(ctx: CPointer<EVP_CIPHER_CTX>, out: CPointer<Byte>, outl: CPointer<Int32>): Int32
 foreign func EVP_CIPHER_CTX_set_padding(ctx: CPointer<EVP_CIPHER_CTX>, pad: Int32): Int32
+
+public const OPENSSL_SUCCESS = 1i32
