@@ -1,7 +1,7 @@
 [dependencies]
   
 [package]
-  cjc-version = "0.60.5"
+  cjc-version = "1.0.0"
   compile-option = ""
   description = "nothing here"
   link-option = "-lcrypto"
@@ -18,4 +18,8 @@
 [target.x86_64-w64-mingw32]
   compile-option = "-lcrypt32"
   [target.x86_64-w64-mingw32.bin-dependencies]
+    path-option = ["${CANGJIE_STDX_PATH}"]
+
+[target.x86_64-unknown-linux-gnu]
+  [target.x86_64-unknown-linux-gnu.bin-dependencies]
     path-option = ["${CANGJIE_STDX_PATH}"]
