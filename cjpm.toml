@@ -4,7 +4,7 @@
   cjc-version = "1.0.0"
   compile-option = ""
   description = "nothing here"
-  link-option = "-lcrypto"
+  link-option = "-lssl -lcrypto"
   name = "shadowsocks_cj"
   output-type = "static"
   src-dir = ""

@@ -63,25 +63,36 @@ public class PasswordCryptor <: ShadowsocksCryptor {
                 initEncrypt()
                 let out = unsafe {acquireArrayRawData(Array<Byte>(data.size, repeat: 0))}
                 let outl = unsafe {acquireArrayRawData(0i32)}
-                let rcode = unsafe {EVP_EncryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, acquireArrayRawData(Int32(data.size)).pointer)}
+                let rcode = unsafe {EVP_EncryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, Int32(data.size))}
                 if (rcode != OPENSSL_SUCCESS) {
+                    log.error("Encrypt failed, return code: ${rcode}, error: ${getOpenSSLError()}")
                     throw Exception("Encrypt failed, return code: ${rcode}")
                 }
                 if (out.array.size != Int64(outl.array[0])) {
                     throw Exception("Encrypt failed, out.size != outl, out size: ${out.array.size}, outl: ${outl.array[0]}")
+                }
+                unsafe { 
+                    releaseArrayRawData(outl)
+                    releaseArrayRawData(out)
                 }
                 return (myEncryptIv ?? throw Exception("'myEncryptIv' not initialized")) + out.array
             case !myEncryptCtx.isNull() && !myEncryptCipher.isNull() =>
                 let out = unsafe {acquireArrayRawData(Array<Byte>(data.size, repeat: 0))}
                 let outl = unsafe {acquireArrayRawData(0i32)}
-                let rcode = unsafe {EVP_EncryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, acquireArrayRawData(Int32(data.size)).pointer)}
+                let rcode = unsafe {EVP_EncryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, Int32(data.size))}
                 if (rcode != OPENSSL_SUCCESS) {
+                    log.error("Encrypt failed, return code: ${rcode}, error: ${getOpenSSLError()}")
                     throw Exception("Encrypt failed, return code: ${rcode}")
                 }
                 if (out.array.size != Int64(outl.array[0])) {
                     throw Exception("Encrypt failed, out.size != outl, out size: ${out.array.size}, outl: ${outl.array[0]}")
                 }
-                return out.array
+                let r = out.array
+                unsafe { 
+                    releaseArrayRawData(outl)
+                    releaseArrayRawData(out)
+                }
+                return r
             case _ => throw Exception("Encryption not initialized correctly, you should make 'myEncryptCtx' and 'myEncryptCipher' initialized first")
         }
     }
@@ -94,12 +105,17 @@ public class PasswordCryptor <: ShadowsocksCryptor {
                         initDecrypt(iv)
                         let out = unsafe {acquireArrayRawData(Array<Byte>(cipherText.size, repeat: 0))}
                         let outl = unsafe {acquireArrayRawData(0i32)}
-                        let rcode = unsafe {EVP_DecryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(cipherText).pointer, acquireArrayRawData(Int32(cipherText.size)).pointer)}
+                        let rcode = unsafe {EVP_DecryptUpdate(myDecryptCtx, out.pointer, outl.pointer, acquireArrayRawData(cipherText).pointer, Int32(cipherText.size))}
                         if (rcode != OPENSSL_SUCCESS) {
+                            log.error("Decrypt failed, return code: ${rcode}, error: ${getOpenSSLError()}")
                             throw Exception("Decrypt failed, return code: ${rcode}")
                         }
                         if (out.array.size != Int64(outl.array[0])) {
                             throw Exception("Decrypt failed, out.size != outl, out size: ${out.array.size}, outl: ${outl.array[0]}")
+                        }
+                        unsafe { 
+                            releaseArrayRawData(outl)
+                            releaseArrayRawData(out)
                         }
                         return out.array
                     case None => throw Exception("Decrypt failed, argument 'data' is not valid packet start with iv which length is ${IV_LEN}")
@@ -107,12 +123,17 @@ public class PasswordCryptor <: ShadowsocksCryptor {
             case !myDecryptCtx.isNull() && !myDecryptCipher.isNull() =>
                 let out = unsafe {acquireArrayRawData(Array<Byte>(data.size, repeat: 0))}
                 let outl = unsafe {acquireArrayRawData(0i32)}
-                let rcode = unsafe {EVP_DecryptUpdate(myEncryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, acquireArrayRawData(Int32(data.size)).pointer)}
-                if (rcode != 0) {
+                let rcode = unsafe {EVP_DecryptUpdate(myDecryptCtx, out.pointer, outl.pointer, acquireArrayRawData(data).pointer, Int32(data.size))}
+                if (rcode != OPENSSL_SUCCESS) {
+                    log.error("Decrypt failed, return code: ${rcode}, error: ${getOpenSSLError()}")
                     throw Exception("Decrypt failed, return code: ${rcode}")
                 }
                 if (out.array.size != Int64(outl.array[0])) {
                     throw Exception("Decrypt failed, out.size != outl, out size: ${out.array.size}, outl: ${outl.array[0]}")
+                }
+                unsafe { 
+                    releaseArrayRawData(outl)
+                    releaseArrayRawData(out)
                 }
                 return out.array
             case _ => throw Exception("Decryption not initialized correctly, you should make 'myDecryptCtx' and 'myDecryptCipher' initialized first")
