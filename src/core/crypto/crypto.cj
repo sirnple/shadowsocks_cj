@@ -27,13 +27,6 @@ public interface ShadowsocksCryptor {
     func decrypt(data: Array<Byte>): Array<Byte>
 }
 
-main() {
-    let cryptor = PasswordCryptor("password", "aes-256-cfb")
-    let encrypted = cryptor.encrypt("hello world".toArray())
-    let decrypted = cryptor.decrypt(encrypted)
-    println(decrypted)
-}
-
 public class PasswordCryptor <: ShadowsocksCryptor {
     private let log = SimpleLogger(getStdOut())
     private let algorithm: String

@@ -58,28 +58,31 @@ class TcpHandler {
                         case Some((ver, cmd, rsv, atyp, addr, port)) =>
                             myDstAddr = Some(DstAddr(atyp, addr, port))
                             let newRemoteSock = TcpSocket(IPSocketAddress(config.server, config.serverPort))
-                            newRemoteSock.readTimeout = Duration.second * 1
+                            newRemoteSock.readTimeout = Duration.second * 5
                             newRemoteSock.connect()
                             myRemoteSock = Some(newRemoteSock)
-                            let bindAddr = (newRemoteSock.localAddress as IPSocketAddress)
+                            let bindAddr = (newRemoteSock
+                                .localAddress as IPSocketAddress)
                                 .getOrThrow({=> Exception("Should never happen")})
                                 .address
-                            let bindPort = (newRemoteSock.localAddress as IPSocketAddress)
+                            let bindPort = (newRemoteSock
+                                .localAddress as IPSocketAddress)
                                 .getOrThrow({=> Exception("Should never happen")})
                                 .port
                             let bindAtyp = match {
-                                case newRemoteSock.localAddress.family == AddressFamily.INET => 
+                                case newRemoteSock.localAddress.family == AddressFamily.INET =>
                                     assert(bindAddr.getAddressBytes().size == 4, message: "")
                                     ATYP_IPv4
-                                case newRemoteSock.localAddress.family == AddressFamily.INET6 => 
+                                case newRemoteSock.localAddress.family == AddressFamily.INET6 =>
                                     assert(bindAddr.getAddressBytes().size == 16, message: "")
                                     ATYP_IPv6
                                 case _ => throw Exception("Should never happen")
                             }
-                            clientSock.write(buildSuccessNegotiationResponse(bindAtyp, bindAddr.getAddressBytes(),[UInt8(bindPort >> 8), UInt8(bindPort & 0xff)]))
+                            clientSock.write(
+                                buildSuccessNegotiationResponse(bindAtyp, bindAddr.getAddressBytes(),
+                                    [UInt8(bindPort >> 8), UInt8(bindPort & 0xff)]))
                             log.debug(
-                                "Negotiation success, sockBindToRemoteServer: ${bindAtyp} ${bindAddr} ${bindPort}, remoteServer: ${config.server} ${config.serverPort}"
-                            )
+                                "Negotiation success, sockBindToRemoteServer: ${bindAtyp} ${bindAddr} ${bindPort}, remoteServer: ${config.server} ${config.serverPort}")
                             status = Status.Established
                         case None =>
                             log.warn("Negotiating failed: read ${buf[0..readCount]} is not a valid negotiation frame")
@@ -108,8 +111,9 @@ class TcpHandler {
                                             ("line", @sourceLine())
                                         )
                                         let packet = match (first) {
-                                            case true => 
-                                                let a = ssCryptor.encrypt(packSsLocalSendFirstSsPacket(dstAddr, buf[0..readCount]))
+                                            case true =>
+                                                let a = ssCryptor.encrypt(
+                                                    packSsLocalSendFirstSsPacket(dstAddr, buf[0..readCount]))
                                                 first = false
                                                 a
                                             case false => ssCryptor.encrypt(buf[0..readCount])
@@ -124,7 +128,9 @@ class TcpHandler {
                                         break
                                     }
                                 case _ =>
-                                    log.warn("Invalid status, remoteSock should create in AddressNegotiationResponse status", ("line", @sourceLine()))
+                                    log.warn(
+                                        "Invalid status, remoteSock should create in AddressNegotiationResponse status",
+                                        ("line", @sourceLine()))
                                     break
                             }
                         }
@@ -156,7 +162,8 @@ class TcpHandler {
                                         break
                                     }
                                 case _ =>
-                                    log.warn("Invalid status, remoteSock should create in Connected status", ("line", @sourceLine()))
+                                    log.warn("Invalid status, remoteSock should create in Connected status",
+                                        ("line", @sourceLine()))
                                     break
                             }
                         }

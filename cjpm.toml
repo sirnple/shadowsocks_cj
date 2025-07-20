@@ -2,7 +2,7 @@
   
 [package]
   cjc-version = "1.0.0"
-  compile-option = ""
+  compile-option = "-O2"
   description = "nothing here"
   link-option = "-lssl -lcrypto"
   name = "shadowsocks_cj"
