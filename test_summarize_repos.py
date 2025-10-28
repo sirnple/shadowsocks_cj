@@ -7,8 +7,8 @@ This tests the core functionality without requiring network access.
 import sys
 import os
 
-# Add the parent directory to path to import the module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add the current directory to path to import the module
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import functions from summarize_repos
 from summarize_repos import format_date, generate_markdown_summary
@@ -129,7 +129,7 @@ def test_language_statistics():
     # Check language breakdown
     assert "### Language Breakdown" in result
     assert "**Python:** 2 repositories" in result
-    assert "**JavaScript:** 1 repositories" in result
+    assert "**JavaScript:** 1 repository" in result
     
     print("✓ test_language_statistics passed")
 

@@ -14,7 +14,7 @@
 
 ### Language Breakdown
 
-- **Cangjie:** 1 repositories
+- **Cangjie:** 1 repository
 
 ## Repository List
 

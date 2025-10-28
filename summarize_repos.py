@@ -105,7 +105,8 @@ def generate_markdown_summary(username: str, repos: List[Dict[str, Any]]) -> str
     # Language breakdown
     md += "### Language Breakdown\n\n"
     for lang, count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
-        md += f"- **{lang}:** {count} repositories\n"
+        repo_word = "repository" if count == 1 else "repositories"
+        md += f"- **{lang}:** {count} {repo_word}\n"
     md += "\n"
     
     # Repository table
