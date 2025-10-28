@@ -18,6 +18,21 @@ Software architecture description
 2.  xxxx
 3.  xxxx
 
+#### Tools
+
+##### Repository Summarizer Tool
+
+This project includes a utility tool `summarize_repos.py` for fetching and summarizing all repositories of a GitHub user.
+
+Usage:
+```bash
+python3 summarize_repos.py [username]
+```
+
+For detailed documentation, see [REPOSITORY_SUMMARIZER.md](REPOSITORY_SUMMARIZER.md)
+
+Sample output: [sirnple_repositories.md](sirnple_repositories.md)
+
 #### Todo list
 
 - [ ] Optimize performance

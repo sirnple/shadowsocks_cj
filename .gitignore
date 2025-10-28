@@ -23,3 +23,12 @@ output
 
 # Gitee
 .gitee
+
+# Repository summarizer generated files
+*_repositories.md
+!sirnple_repositories.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class

@@ -18,6 +18,21 @@ shadowsocks的仓颉实现
 2.  xxxx
 3.  xxxx
 
+#### 工具
+
+##### 仓库总结工具
+
+本项目包含一个实用工具 `summarize_repos.py`，用于获取和总结 GitHub 用户的所有仓库信息。
+
+使用方法：
+```bash
+python3 summarize_repos.py [username]
+```
+
+详细文档请参考 [REPOSITORY_SUMMARIZER.md](REPOSITORY_SUMMARIZER.md)
+
+示例输出：[sirnple_repositories.md](sirnple_repositories.md)
+
 #### Todo list
 
 - [ ] 性能优化
